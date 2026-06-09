@@ -43,6 +43,8 @@ fun MainScreen(viewModel: MainViewModel) {
     val indiceDia by viewModel.indiceDiaSeleccionado.collectAsStateWithLifecycle()
     val etiquetaDia by viewModel.etiquetaDiaSeleccionado.collectAsStateWithLifecycle()
     val diaCompletado by viewModel.diaCompletado.collectAsStateWithLifecycle()
+    val fechaMillis by viewModel.fechaSeleccionadaMillis.collectAsStateWithLifecycle()
+    val alimentosGuardados by viewModel.alimentosGuardados.collectAsStateWithLifecycle()
 
     var pestana by remember { mutableStateOf(Pestana.METRICAS) }
 
@@ -93,7 +95,9 @@ fun MainScreen(viewModel: MainViewModel) {
                 indiceDia = indiceDia,
                 etiquetaDia = etiquetaDia,
                 diaCompletado = diaCompletado,
+                fechaMillis = fechaMillis,
                 onSeleccionarDia = viewModel::seleccionarDia,
+                onFechaManual = viewModel::setFechaManual,
                 onToggleCompletado = viewModel::marcarDiaCompletado,
                 onLimpiarDia = viewModel::limpiarDia,
                 onAgregar = viewModel::agregarRegistro,
@@ -131,10 +135,16 @@ fun MainScreen(viewModel: MainViewModel) {
     if (mostrarAlimento) {
         AgregarAlimentoDialog(
             metricas = state.metricas.map { it.config },
+            alimentos = alimentosGuardados,
             onConfirmar = { nombre, valores ->
                 viewModel.agregarAlimento(nombre, valores)
                 mostrarAlimento = false
             },
+            onAplicar = { viewModel.aplicarAlimentoGuardado(it) },
+            onEditarGuardado = { a, nombre, valores ->
+                viewModel.editarAlimentoGuardado(a, nombre, valores)
+            },
+            onEliminarGuardado = { viewModel.eliminarAlimentoGuardado(it) },
             onCancelar = { mostrarAlimento = false }
         )
     }

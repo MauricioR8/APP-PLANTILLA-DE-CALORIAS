@@ -28,13 +28,18 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +47,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +63,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.ui.state.MetricaConItem
+import com.mauricior8.calorias.ui.theme.VerdeCompletado
 import com.mauricior8.calorias.util.colorDesdeHex
 import com.mauricior8.calorias.util.formatoValor
 
@@ -71,7 +79,9 @@ fun MetricasScreen(
     indiceDia: Int,
     etiquetaDia: String,
     diaCompletado: Boolean,
+    fechaMillis: Long,
     onSeleccionarDia: (Int) -> Unit,
+    onFechaManual: (Long) -> Unit,
     onToggleCompletado: (Boolean) -> Unit,
     onLimpiarDia: () -> Unit,
     onAgregar: (metricaId: String, valor: Float) -> Unit,
@@ -99,7 +109,9 @@ fun MetricasScreen(
                         indiceDia = indiceDia,
                         etiquetaDia = etiquetaDia,
                         diaCompletado = diaCompletado,
+                        fechaMillis = fechaMillis,
                         onSeleccionarDia = onSeleccionarDia,
+                        onFechaManual = onFechaManual,
                         onToggleCompletado = onToggleCompletado,
                         onLimpiarDia = onLimpiarDia
                     )
@@ -148,17 +160,21 @@ fun MetricasScreen(
  * Selector del dia de la semana (Lunes-Domingo), con marca de "dia completado"
  * y boton para limpiar/reiniciar los datos del dia.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SelectorDia(
     diasSemana: List<String>,
     indiceDia: Int,
     etiquetaDia: String,
     diaCompletado: Boolean,
+    fechaMillis: Long,
     onSeleccionarDia: (Int) -> Unit,
+    onFechaManual: (Long) -> Unit,
     onToggleCompletado: (Boolean) -> Unit,
     onLimpiarDia: () -> Unit
 ) {
     var menuAbierto by remember { mutableStateOf(false) }
+    var mostrarDatePicker by remember { mutableStateOf(false) }
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -191,6 +207,13 @@ private fun SelectorDia(
                         }
                     }
                 }
+                IconButton(onClick = { mostrarDatePicker = true }) {
+                    Icon(
+                        Icons.Default.DateRange,
+                        contentDescription = "Elegir fecha exacta",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
                 IconButton(onClick = onLimpiarDia) {
                     Icon(
                         Icons.Default.Refresh,
@@ -203,9 +226,35 @@ private fun SelectorDia(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(checked = diaCompletado, onCheckedChange = onToggleCompletado)
-                Text("Dia completado (calorias y macros)")
+                Checkbox(
+                    checked = diaCompletado,
+                    onCheckedChange = onToggleCompletado,
+                    colors = CheckboxDefaults.colors(checkedColor = VerdeCompletado)
+                )
+                Text(
+                    "Dia completado (calorias y macros)",
+                    color = if (diaCompletado) VerdeCompletado else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (diaCompletado) FontWeight.Bold else FontWeight.Normal
+                )
             }
+        }
+    }
+
+    if (mostrarDatePicker) {
+        val estado = rememberDatePickerState(initialSelectedDateMillis = fechaMillis)
+        DatePickerDialog(
+            onDismissRequest = { mostrarDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estado.selectedDateMillis?.let(onFechaManual)
+                    mostrarDatePicker = false
+                }) { Text("Aceptar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDatePicker = false }) { Text("Cancelar") }
+            }
+        ) {
+            DatePicker(state = estado)
         }
     }
 }

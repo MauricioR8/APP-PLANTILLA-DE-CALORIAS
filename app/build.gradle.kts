@@ -13,8 +13,8 @@ android {
         applicationId = "com.mauricior8.calorias"
         minSdk = 24
         targetSdk = 34
-        versionCode = 4
-        versionName = "4.0-dias"
+        versionCode = 5
+        versionName = "5.0-final"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

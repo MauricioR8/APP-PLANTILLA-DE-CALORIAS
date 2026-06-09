@@ -39,3 +39,19 @@ private val formatoHora = SimpleDateFormat("HH:mm", Locale.getDefault())
 fun fechaHora(timestamp: Long): String = formatoFechaHora.format(Date(timestamp))
 
 fun hora(timestamp: Long): String = formatoHora.format(Date(timestamp))
+
+/** Codifica un mapa metricaId->valor como "id=valor;id=valor". */
+fun codificarValores(valores: Map<String, Float>): String =
+    valores.entries.joinToString(";") { "${it.key}=${it.value}" }
+
+/** Decodifica el string de [codificarValores] a un mapa. */
+fun decodificarValores(texto: String): Map<String, Float> {
+    if (texto.isBlank()) return emptyMap()
+    return texto.split(";").mapNotNull { par ->
+        val partes = par.split("=")
+        if (partes.size == 2) {
+            val valor = partes[1].toFloatOrNull() ?: return@mapNotNull null
+            partes[0] to valor
+        } else null
+    }.toMap()
+}

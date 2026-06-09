@@ -18,7 +18,8 @@ class CaloriasApp : Application() {
             notaDao = database.notaDao(),
             calculoDao = database.calculoDao(),
             tablaDao = database.tablaDao(),
-            estadoDiaDao = database.estadoDiaDao()
+            estadoDiaDao = database.estadoDiaDao(),
+            alimentoDao = database.alimentoDao()
         )
     }
 }

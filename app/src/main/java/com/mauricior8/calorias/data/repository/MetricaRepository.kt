@@ -1,10 +1,12 @@
 package com.mauricior8.calorias.data.repository
 
+import com.mauricior8.calorias.data.local.dao.AlimentoDao
 import com.mauricior8.calorias.data.local.dao.CalculoDao
 import com.mauricior8.calorias.data.local.dao.EstadoDiaDao
 import com.mauricior8.calorias.data.local.dao.MetricaDao
 import com.mauricior8.calorias.data.local.dao.NotaDao
 import com.mauricior8.calorias.data.local.dao.TablaDao
+import com.mauricior8.calorias.data.local.entity.AlimentoGuardado
 import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.CeldaTabla
 import com.mauricior8.calorias.data.local.entity.ColumnaTabla
@@ -25,7 +27,8 @@ class MetricaRepository(
     private val notaDao: NotaDao,
     private val calculoDao: CalculoDao,
     private val tablaDao: TablaDao,
-    private val estadoDiaDao: EstadoDiaDao
+    private val estadoDiaDao: EstadoDiaDao,
+    private val alimentoDao: AlimentoDao
 ) {
 
     // ---- Metricas ----
@@ -60,6 +63,12 @@ class MetricaRepository(
     fun observarEstadoDia(fecha: String): Flow<EstadoDia?> = estadoDiaDao.observar(fecha)
     suspend fun guardarEstadoDia(estado: EstadoDia) = estadoDiaDao.upsert(estado)
 
+    // ---- Historial de alimentos ----
+    val alimentosGuardados: Flow<List<AlimentoGuardado>> = alimentoDao.observar()
+    suspend fun guardarAlimento(alimento: AlimentoGuardado): Long = alimentoDao.insertar(alimento)
+    suspend fun actualizarAlimento(alimento: AlimentoGuardado) = alimentoDao.actualizar(alimento)
+    suspend fun eliminarAlimento(alimento: AlimentoGuardado) = alimentoDao.eliminar(alimento)
+
     // ---- Notas ----
     val notas: Flow<List<Nota>> = notaDao.observarNotas()
     suspend fun guardarNota(nota: Nota) = notaDao.upsert(nota)
@@ -81,6 +90,8 @@ class MetricaRepository(
         tablaDao.insertTabla(TablaAlimentos(nombre = nombre))
 
     suspend fun eliminarTabla(tabla: TablaAlimentos) = tablaDao.eliminarTabla(tabla)
+
+    suspend fun actualizarTabla(tabla: TablaAlimentos) = tablaDao.actualizarTabla(tabla)
 
     /** Devuelve false si se alcanzo el limite de 10 columnas. */
     suspend fun agregarColumna(tablaId: Int, nombre: String): Boolean {

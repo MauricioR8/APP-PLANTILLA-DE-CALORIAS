@@ -3,10 +3,36 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Fondo violeta -->
     <path
-        android:fillColor="#FF6D00"
+        android:fillColor="#7C3AED"
         android:pathData="M0,0h108v108h-108z" />
+
+    <!-- Tenedor (blanco): tres puas, cuello y mango -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,28c-9,12 -14,19 -14,28a14,14 0 1 0 28,0c0,-9 -5,-16 -14,-28z" />
+        android:pathData="M34,26 h4 v18 h-4 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M41,26 h4 v18 h-4 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48,26 h4 v18 h-4 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,44 h22 v4 q0,4 -4,4 h-3 v34 q0,3 -4,3 q-4,0 -4,-3 v-34 h-3 q-4,0 -4,-4 z" />
+
+    <!-- Hoja superior (verde) -->
+    <path
+        android:fillColor="#86EFAC"
+        android:pathData="M72,28 C84,32 86,46 73,56 C66,47 64,37 72,28 Z" />
+    <!-- Hoja inferior (verde mas oscuro) -->
+    <path
+        android:fillColor="#4ADE80"
+        android:pathData="M72,58 C84,62 86,76 73,86 C66,77 64,67 72,58 Z" />
+    <!-- Tallo de las hojas -->
+    <path
+        android:strokeColor="#22C55E"
+        android:strokeWidth="2"
+        android:pathData="M73,56 L73,86" />
 </vector>

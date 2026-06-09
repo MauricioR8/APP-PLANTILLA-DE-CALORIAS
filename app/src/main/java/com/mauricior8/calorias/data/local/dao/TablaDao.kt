@@ -24,6 +24,9 @@ interface TablaDao {
     @Delete
     suspend fun eliminarTabla(tabla: TablaAlimentos)
 
+    @androidx.room.Update
+    suspend fun actualizarTabla(tabla: TablaAlimentos)
+
     // ---- Columnas ----
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertColumna(columna: ColumnaTabla): Long

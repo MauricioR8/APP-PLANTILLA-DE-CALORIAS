@@ -4,11 +4,13 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.mauricior8.calorias.data.local.dao.AlimentoDao
 import com.mauricior8.calorias.data.local.dao.CalculoDao
 import com.mauricior8.calorias.data.local.dao.EstadoDiaDao
 import com.mauricior8.calorias.data.local.dao.MetricaDao
 import com.mauricior8.calorias.data.local.dao.NotaDao
 import com.mauricior8.calorias.data.local.dao.TablaDao
+import com.mauricior8.calorias.data.local.entity.AlimentoGuardado
 import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.CeldaTabla
 import com.mauricior8.calorias.data.local.entity.ColumnaTabla
@@ -29,9 +31,10 @@ import com.mauricior8.calorias.data.local.entity.TablaAlimentos
         ColumnaTabla::class,
         FilaTabla::class,
         CeldaTabla::class,
-        EstadoDia::class
+        EstadoDia::class,
+        AlimentoGuardado::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,6 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun calculoDao(): CalculoDao
     abstract fun tablaDao(): TablaDao
     abstract fun estadoDiaDao(): EstadoDiaDao
+    abstract fun alimentoDao(): AlimentoDao
 
     companion object {
         @Volatile

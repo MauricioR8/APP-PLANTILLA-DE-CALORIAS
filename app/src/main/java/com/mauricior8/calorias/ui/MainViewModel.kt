@@ -3,6 +3,7 @@ package com.mauricior8.calorias.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.mauricior8.calorias.data.local.entity.AlimentoGuardado
 import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.CeldaTabla
 import com.mauricior8.calorias.data.local.entity.ColumnaTabla
@@ -14,6 +15,8 @@ import com.mauricior8.calorias.data.local.entity.RegistroSuma
 import com.mauricior8.calorias.data.local.entity.TablaAlimentos
 import com.mauricior8.calorias.data.repository.MetricaRepository
 import com.mauricior8.calorias.util.Calculadora
+import com.mauricior8.calorias.util.codificarValores
+import com.mauricior8.calorias.util.decodificarValores
 import com.mauricior8.calorias.ui.state.MetricaConItem
 import com.mauricior8.calorias.ui.state.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -72,6 +76,9 @@ class MainViewModel(
             repository.observarEstadoDia(fechaKey(inicio)).map { it?.completado ?: false }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    /** Inicio del dia seleccionado en millis (para el selector de fecha manual). */
+    val fechaSeleccionadaMillis: StateFlow<Long> = _inicioDiaSeleccionado.asStateFlow()
+
     // ---------------- Estado de Metricas ----------------
 
     val uiState: StateFlow<UiState> =
@@ -100,6 +107,12 @@ class MainViewModel(
 
     fun seleccionarDia(indice: Int) {
         _inicioDiaSeleccionado.value = inicioDeDiaSemana(indice)
+    }
+
+    /** Fija manualmente la fecha (dia/mes/anio) a partir de millis. */
+    fun setFechaManual(millis: Long) {
+        val c = Calendar.getInstance().apply { timeInMillis = millis }
+        _inicioDiaSeleccionado.value = aMedianoche(c)
     }
 
     fun limpiarDia() {
@@ -142,6 +155,15 @@ class MainViewModel(
     fun columnas(tablaId: Int): Flow<List<ColumnaTabla>> = repository.columnas(tablaId)
     fun filas(tablaId: Int): Flow<List<FilaTabla>> = repository.filas(tablaId)
     fun celdas(tablaId: Int): Flow<List<CeldaTabla>> = repository.celdas(tablaId)
+
+    // ---------------- Estado de Alimentos guardados (historial) ----------------
+
+    val alimentosGuardados: StateFlow<List<AlimentoGuardado>> =
+        repository.alimentosGuardados.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
     // ---------------- Acciones: Metricas ----------------
 
@@ -221,7 +243,7 @@ class MainViewModel(
     /**
      * Agrega un alimento que aporta valores a varias metricas a la vez.
      * Inserta un registro (tipo "alimento") por cada metrica con valor > 0,
-     * usando el nombre del alimento como detalle.
+     * y ademas lo guarda en el historial reutilizable.
      *
      * @param valores mapa metricaId -> valor aportado.
      */
@@ -242,7 +264,47 @@ class MainViewModel(
                     )
                 )
             }
+            // Guardar tambien en el historial reutilizable.
+            repository.guardarAlimento(
+                AlimentoGuardado(nombre = nombreLimpio, valores = codificarValores(aportes))
+            )
         }
+    }
+
+    /** Re-aplica un alimento guardado al dia seleccionado (sin duplicar en historial). */
+    fun aplicarAlimentoGuardado(alimento: AlimentoGuardado) {
+        val aportes = decodificarValores(alimento.valores).filterValues { it > 0f }
+        if (aportes.isEmpty()) return
+        viewModelScope.launch {
+            val ts = timestampParaRegistro()
+            aportes.forEach { (metricaId, valor) ->
+                repository.agregarRegistro(
+                    RegistroSuma(
+                        metricaId = metricaId,
+                        valor = valor,
+                        timestamp = ts,
+                        tipo = "alimento",
+                        detalle = alimento.nombre
+                    )
+                )
+            }
+        }
+    }
+
+    /** Edita un alimento del historial (nombre y/o valores). */
+    fun editarAlimentoGuardado(alimento: AlimentoGuardado, nombre: String, valores: Map<String, Float>) {
+        viewModelScope.launch {
+            repository.actualizarAlimento(
+                alimento.copy(
+                    nombre = nombre.trim().ifEmpty { alimento.nombre },
+                    valores = codificarValores(valores.filterValues { it > 0f })
+                )
+            )
+        }
+    }
+
+    fun eliminarAlimentoGuardado(alimento: AlimentoGuardado) {
+        viewModelScope.launch { repository.eliminarAlimento(alimento) }
     }
 
     // ---------------- Acciones: Notas ----------------
@@ -290,6 +352,10 @@ class MainViewModel(
 
     fun eliminarTabla(tabla: TablaAlimentos) {
         viewModelScope.launch { repository.eliminarTabla(tabla) }
+    }
+
+    fun cambiarTipoGrafica(tabla: TablaAlimentos, tipo: String) {
+        viewModelScope.launch { repository.actualizarTabla(tabla.copy(tipoGrafica = tipo)) }
     }
 
     fun agregarColumna(tablaId: Int, nombre: String) {

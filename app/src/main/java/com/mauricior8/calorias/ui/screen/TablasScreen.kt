@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,14 +21,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -186,6 +190,7 @@ private fun DetalleTabla(
     var dialogoColumna by remember { mutableStateOf(false) }
     var dialogoFila by remember { mutableStateOf(false) }
     var celdaEditando by remember { mutableStateOf<Triple<FilaTabla, ColumnaTabla, String>?>(null) }
+    var mostrarGrafica by remember { mutableStateOf(false) }
 
     val anchoCelda = 110.dp
     val anchoFilaNombre = 130.dp
@@ -226,6 +231,17 @@ private fun DetalleTabla(
                 Spacer(Modifier.width(4.dp))
                 Text("Fila (${filas.size}/${MetricaRepository.MAX_FILAS})")
             }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = { mostrarGrafica = true },
+            enabled = columnas.isNotEmpty() && filas.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Edit, contentDescription = null)
+            Spacer(Modifier.width(6.dp))
+            Text("Ver / editar grafica")
         }
 
         Spacer(Modifier.height(10.dp))
@@ -333,6 +349,86 @@ private fun DetalleTabla(
             onCancelar = { celdaEditando = null }
         )
     }
+
+    if (mostrarGrafica) {
+        GraficaDialog(
+            tabla = tabla,
+            columnas = columnas,
+            filas = filas,
+            celdaPorClave = celdaPorClave,
+            onCambiarTipo = { viewModel.cambiarTipoGrafica(tabla, it) },
+            onCerrar = { mostrarGrafica = false }
+        )
+    }
+}
+
+@Composable
+private fun GraficaDialog(
+    tabla: TablaAlimentos,
+    columnas: List<ColumnaTabla>,
+    filas: List<FilaTabla>,
+    celdaPorClave: Map<Pair<Int, Int>, CeldaTabla>,
+    onCambiarTipo: (String) -> Unit,
+    onCerrar: () -> Unit
+) {
+    val tipos = listOf("Barras", "Histograma", "Pastel", "Picos")
+    var columnaSel by remember(tabla.id) { mutableStateOf(columnas.firstOrNull()?.id) }
+
+    val datos: List<Pair<String, Float>> = remember(columnaSel, celdaPorClave, filas) {
+        val colId = columnaSel
+        if (colId == null) emptyList()
+        else filas.map { fila ->
+            val v = celdaPorClave[fila.id to colId]?.valor?.toFloatOrNull() ?: 0f
+            fila.nombre to v
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onCerrar,
+        title = { Text("Grafica: ${tabla.nombre}") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text("Tipo de grafica", fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    tipos.forEach { t ->
+                        FilterChip(
+                            selected = tabla.tipoGrafica == t,
+                            onClick = { onCambiarTipo(t) },
+                            label = { Text(t) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                Text("Columna a graficar", fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    columnas.forEach { col ->
+                        FilterChip(
+                            selected = columnaSel == col.id,
+                            onClick = { columnaSel = col.id },
+                            label = { Text(col.nombre) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+                GraficaTabla(datos = datos, tipo = tabla.tipoGrafica)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onCerrar) { Text("Cerrar") }
+        }
+    )
 }
 
 @Composable

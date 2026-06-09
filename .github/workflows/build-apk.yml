@@ -41,13 +41,14 @@ jobs:
       - name: Publish APK to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v4.0-dias
-          name: "APK v4.0 - Dias de la semana, limpiar dia y mejoras"
+          tag_name: v5.0-final
+          name: "APK v5.0 - Graficas, historial de alimentos, fecha manual y diseno renovado"
           body: |
-            APK de depuracion (version 4.0).
-            Novedades: selector de dia de la semana (datos independientes por dia),
-            boton para limpiar/reiniciar el dia, marca de "dia completado",
-            metas con barras del color de cada atributo y notas abribles/editables.
+            APK de depuracion (version 5.0 - final).
+            Novedades: historial de alimentos editable, fecha manual (dia/mes/anio),
+            "dia completado" en verde, graficas en las tablas (barras, histograma,
+            pastel y picos), paleta de colores moderna, icono nuevo (tenedor + hojas)
+            y nombre "Herramienta Calorias Macros".
             Descarga `app-debug.apk` desde los Assets e instalalo en tu Samsung A15
             (habilita "Instalar apps de origen desconocido").
           files: app/build/outputs/apk/debug/app-debug.apk
