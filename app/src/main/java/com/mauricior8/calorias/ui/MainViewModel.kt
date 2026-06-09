@@ -3,15 +3,17 @@ package com.mauricior8.calorias.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
+import com.mauricior8.calorias.data.local.entity.Nota
 import com.mauricior8.calorias.data.local.entity.RegistroSuma
 import com.mauricior8.calorias.data.repository.MetricaRepository
+import com.mauricior8.calorias.util.Calculadora
 import com.mauricior8.calorias.ui.state.MetricaConItem
 import com.mauricior8.calorias.ui.state.UiState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -24,26 +26,8 @@ class MainViewModel(
         sembrarMetricasPorDefecto()
     }
 
-    /**
-     * Crea un set inicial de metricas la primera vez que se abre la app.
-     */
-    private fun sembrarMetricasPorDefecto() {
-        viewModelScope.launch {
-            if (repository.hayMetricas()) return@launch
-            val defaults = listOf(
-                MetricaConfig("calorias", "Calorias", "kcal", 2000f, "#FF6D00"),
-                MetricaConfig("proteinas", "Proteinas", "gr", 120f, "#2E7D32"),
-                MetricaConfig("carbohidratos", "Carbohidratos", "gr", 250f, "#1565C0"),
-                MetricaConfig("agua", "Agua", "L", 2f, "#0097A7")
-            )
-            defaults.forEach { repository.guardarMetrica(it) }
-        }
-    }
+    // ---------------- Estado de Metricas ----------------
 
-    /**
-     * UiState derivado: combina la lista de metricas con los totales del dia.
-     * Se expone como StateFlow para que Compose lo observe de forma reactiva.
-     */
     val uiState: StateFlow<UiState> =
         combine(
             repository.metricas,
@@ -63,11 +47,28 @@ class MainViewModel(
             initialValue = UiState(isLoading = true)
         )
 
-    /** Historial reactivo de una metrica concreta. */
-    fun historial(metricaId: String) =
-        repository.historial(metricaId)
+    fun historial(metricaId: String) = repository.historial(metricaId)
 
-    /** Crea una nueva metrica/categoria definida por el usuario. */
+    // ---------------- Estado de Notas ----------------
+
+    val notas: StateFlow<List<Nota>> =
+        repository.notas.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
+    // ---------------- Estado de Calculadora ----------------
+
+    val historialCalculos: StateFlow<List<CalculoHistorial>> =
+        repository.historialCalculos.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
+    // ---------------- Acciones: Metricas ----------------
+
     fun crearMetrica(
         nombre: String,
         unidad: String,
@@ -83,13 +84,44 @@ class MainViewModel(
                     nombre = nombreLimpio,
                     unidad = unidad,
                     limiteMaximo = limiteMaximo,
-                    colorHex = colorHex
+                    colorHex = colorHex,
+                    orden = repository.siguienteOrden()
                 )
             )
         }
     }
 
-    /** Inserta un nuevo registro de suma para una metrica. */
+    /** Edita una metrica existente conservando su id y orden. */
+    fun editarMetrica(metrica: MetricaConfig) {
+        viewModelScope.launch { repository.guardarMetrica(metrica) }
+    }
+
+    fun eliminarMetrica(metrica: MetricaConfig) {
+        viewModelScope.launch { repository.eliminarMetrica(metrica) }
+    }
+
+    /** Intercambia el orden con el vecino superior. */
+    fun moverArriba(metricaId: String) = moverEnDireccion(metricaId, -1)
+
+    /** Intercambia el orden con el vecino inferior. */
+    fun moverAbajo(metricaId: String) = moverEnDireccion(metricaId, +1)
+
+    private fun moverEnDireccion(metricaId: String, delta: Int) {
+        val items = uiState.value.metricas
+        val index = items.indexOfFirst { it.config.id == metricaId }
+        if (index < 0) return
+        val destino = index + delta
+        if (destino < 0 || destino >= items.size) return
+
+        val actual = items[index].config
+        val vecino = items[destino].config
+        viewModelScope.launch {
+            // Intercambiar valores de orden.
+            repository.actualizarOrden(actual.id, vecino.orden)
+            repository.actualizarOrden(vecino.id, actual.orden)
+        }
+    }
+
     fun agregarRegistro(
         metricaId: String,
         valor: Float,
@@ -109,6 +141,59 @@ class MainViewModel(
         }
     }
 
+    // ---------------- Acciones: Notas ----------------
+
+    fun guardarNota(texto: String, id: Int = 0) {
+        val limpio = texto.trim()
+        if (limpio.isEmpty()) return
+        viewModelScope.launch {
+            repository.guardarNota(Nota(id = id, texto = limpio))
+        }
+    }
+
+    fun eliminarNota(nota: Nota) {
+        viewModelScope.launch { repository.eliminarNota(nota) }
+    }
+
+    // ---------------- Acciones: Calculadora ----------------
+
+    /**
+     * Evalua la expresion. Si es valida, persiste el calculo y devuelve el
+     * resultado formateado; si no, devuelve null.
+     */
+    fun calcular(expresion: String): String? {
+        val resultado = Calculadora.evaluar(expresion) ?: return null
+        val texto = formato(resultado)
+        viewModelScope.launch {
+            repository.guardarCalculo(
+                CalculoHistorial(expresion = expresion.trim(), resultado = texto)
+            )
+        }
+        return texto
+    }
+
+    fun limpiarHistorialCalculos() {
+        viewModelScope.launch { repository.limpiarCalculos() }
+    }
+
+    // ---------------- Helpers ----------------
+
+    private fun sembrarMetricasPorDefecto() {
+        viewModelScope.launch {
+            if (repository.hayMetricas()) return@launch
+            val defaults = listOf(
+                MetricaConfig("calorias", "Calorias", "kcal", 2000f, "#EF5350", 0),
+                MetricaConfig("proteinas", "Proteinas", "gr", 120f, "#66BB6A", 1),
+                MetricaConfig("carbohidratos", "Carbohidratos", "gr", 250f, "#42A5F5", 2),
+                MetricaConfig("agua", "Agua", "L", 2f, "#26C6DA", 3)
+            )
+            defaults.forEach { repository.guardarMetrica(it) }
+        }
+    }
+
+    private fun formato(valor: Float): String =
+        if (valor % 1f == 0f) valor.toInt().toString() else "%.2f".format(valor)
+
     private fun generarId(nombre: String): String {
         val slug = nombre.lowercase(Locale.getDefault())
             .replace("[^a-z0-9]+".toRegex(), "_")
@@ -116,9 +201,6 @@ class MainViewModel(
         return "${slug}_${System.currentTimeMillis()}"
     }
 
-    /**
-     * Factory para inyectar el repositorio sin librerias de DI externas.
-     */
     class Factory(
         private val repository: MetricaRepository
     ) : ViewModelProvider.Factory {

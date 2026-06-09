@@ -13,6 +13,10 @@ class CaloriasApp : Application() {
     val database: AppDatabase by lazy { AppDatabase.getInstance(this) }
 
     val repository: MetricaRepository by lazy {
-        MetricaRepository(database.metricaDao())
+        MetricaRepository(
+            metricaDao = database.metricaDao(),
+            notaDao = database.notaDao(),
+            calculoDao = database.calculoDao()
+        )
     }
 }

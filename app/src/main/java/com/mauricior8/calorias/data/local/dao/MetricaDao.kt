@@ -1,6 +1,7 @@
 package com.mauricior8.calorias.data.local.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -20,15 +21,12 @@ interface MetricaDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertRegistro(registro: RegistroSuma): Long
 
-    // c) Obtener todas las metricas como Flow reactivo.
-    @Query("SELECT * FROM metricas ORDER BY nombre ASC")
+    // c) Obtener todas las metricas como Flow reactivo, ordenadas por posicion.
+    @Query("SELECT * FROM metricas ORDER BY orden ASC, nombre ASC")
     fun observarMetricas(): Flow<List<MetricaConfig>>
 
     /**
      * d) Suma total de los valores ingresados HOY, agrupados por metricaId.
-     *
-     * Se filtra por el rango [inicioDia, finDia) en milisegundos epoch, que el
-     * repositorio calcula para el dia actual del dispositivo.
      */
     @Query(
         """
@@ -49,6 +47,18 @@ interface MetricaDao {
         """
     )
     fun observarHistorial(metricaId: String): Flow<List<RegistroSuma>>
+
+    // Eliminar una metrica (los registros se borran en cascada).
+    @Delete
+    suspend fun eliminarMetrica(metrica: MetricaConfig)
+
+    // Actualizar el orden de una metrica concreta.
+    @Query("UPDATE metricas SET orden = :nuevoOrden WHERE id = :id")
+    suspend fun actualizarOrden(id: String, nuevoOrden: Int)
+
+    // Maximo orden actual (para colocar nuevas metricas al final).
+    @Query("SELECT COALESCE(MAX(orden), -1) FROM metricas")
+    suspend fun maxOrden(): Int
 
     // Util: contar metricas existentes (para sembrar datos por defecto la 1a vez).
     @Query("SELECT COUNT(*) FROM metricas")

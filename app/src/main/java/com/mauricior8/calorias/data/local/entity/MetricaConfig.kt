@@ -12,6 +12,7 @@ import androidx.room.PrimaryKey
  * @param unidad    Unidad de medida: "kcal", "gr", "mg", "L".
  * @param limiteMaximo  Limite/objetivo maximo diario opcional. Si es null no hay limite.
  * @param colorHex  Color asociado para la UI en formato "#RRGGBB".
+ * @param orden     Posicion en la lista (para reordenar arriba/abajo).
  */
 @Entity(tableName = "metricas")
 data class MetricaConfig(
@@ -20,5 +21,6 @@ data class MetricaConfig(
     val nombre: String,
     val unidad: String,
     val limiteMaximo: Float? = null,
-    val colorHex: String = "#FF6D00"
+    val colorHex: String = "#FF6D00",
+    val orden: Int = 0
 )

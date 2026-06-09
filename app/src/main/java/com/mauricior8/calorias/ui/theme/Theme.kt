@@ -1,51 +1,59 @@
 package com.mauricior8.calorias.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 
-private val Naranja = Color(0xFFFF6D00)
-private val NaranjaOscuro = Color(0xFFE65100)
-private val VerdeAcento = Color(0xFF2E7D32)
+// Paleta principal: indigo + teal, moderna y de buen contraste.
+private val Indigo = Color(0xFF4F46E5)
+private val IndigoClaro = Color(0xFFEEF0FF)
+private val Teal = Color(0xFF0EA5A4)
+private val Coral = Color(0xFFF97316)
 
 private val LightColors = lightColorScheme(
-    primary = Naranja,
-    secondary = VerdeAcento,
-    tertiary = NaranjaOscuro
+    primary = Indigo,
+    onPrimary = Color.White,
+    primaryContainer = IndigoClaro,
+    onPrimaryContainer = Color(0xFF1E1B4B),
+    secondary = Teal,
+    onSecondary = Color.White,
+    tertiary = Coral,
+    background = Color(0xFFF6F7FB),
+    onBackground = Color(0xFF1A1C1E),
+    surface = Color.White,
+    onSurface = Color(0xFF1A1C1E),
+    surfaceVariant = Color(0xFFEDEFF5),
+    onSurfaceVariant = Color(0xFF44474E)
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Naranja,
-    secondary = VerdeAcento,
-    tertiary = NaranjaOscuro
+    primary = Color(0xFFA5B4FC),
+    onPrimary = Color(0xFF1E1B4B),
+    primaryContainer = Color(0xFF312E81),
+    onPrimaryContainer = Color(0xFFE0E7FF),
+    secondary = Color(0xFF5EEAD4),
+    tertiary = Color(0xFFFDBA74),
+    background = Color(0xFF111317),
+    onBackground = Color(0xFFE3E2E6),
+    surface = Color(0xFF1A1C1E),
+    onSurface = Color(0xFFE3E2E6),
+    surfaceVariant = Color(0xFF2A2D33),
+    onSurfaceVariant = Color(0xFFC4C6CF)
 )
 
 @Composable
 fun CaloriasTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context)
-            else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColors
-        else -> LightColors
-    }
-
+    val colorScheme = if (darkTheme) DarkColors else LightColors
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = Typography(),
         content = content
     )
 }

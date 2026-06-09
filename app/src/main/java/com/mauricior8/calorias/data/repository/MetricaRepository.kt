@@ -1,36 +1,59 @@
 package com.mauricior8.calorias.data.repository
 
+import com.mauricior8.calorias.data.local.dao.CalculoDao
 import com.mauricior8.calorias.data.local.dao.MetricaDao
+import com.mauricior8.calorias.data.local.dao.NotaDao
+import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
+import com.mauricior8.calorias.data.local.entity.Nota
 import com.mauricior8.calorias.data.local.entity.RegistroSuma
 import com.mauricior8.calorias.data.local.model.MetricaTotal
 import kotlinx.coroutines.flow.Flow
 import java.util.Calendar
 
 /**
- * Capa intermedia entre el [MetricaDao] y la capa de presentacion (ViewModel).
- * Centraliza el acceso a datos y la logica relacionada con fechas.
+ * Capa intermedia entre los DAO y la capa de presentacion (ViewModel).
  */
 class MetricaRepository(
-    private val dao: MetricaDao
+    private val metricaDao: MetricaDao,
+    private val notaDao: NotaDao,
+    private val calculoDao: CalculoDao
 ) {
 
-    val metricas: Flow<List<MetricaConfig>> = dao.observarMetricas()
+    // ---- Metricas ----
+    val metricas: Flow<List<MetricaConfig>> = metricaDao.observarMetricas()
 
-    /** Totales acumulados del dia actual del dispositivo, agrupados por metrica. */
     val totalesDeHoy: Flow<List<MetricaTotal>> = run {
         val (inicio, fin) = rangoDelDiaActual()
-        dao.observarTotalesDelDia(inicio, fin)
+        metricaDao.observarTotalesDelDia(inicio, fin)
     }
 
     fun historial(metricaId: String): Flow<List<RegistroSuma>> =
-        dao.observarHistorial(metricaId)
+        metricaDao.observarHistorial(metricaId)
 
-    suspend fun guardarMetrica(metrica: MetricaConfig) = dao.upsertMetrica(metrica)
+    suspend fun guardarMetrica(metrica: MetricaConfig) = metricaDao.upsertMetrica(metrica)
 
-    suspend fun agregarRegistro(registro: RegistroSuma): Long = dao.insertRegistro(registro)
+    suspend fun eliminarMetrica(metrica: MetricaConfig) = metricaDao.eliminarMetrica(metrica)
 
-    suspend fun hayMetricas(): Boolean = dao.contarMetricas() > 0
+    suspend fun actualizarOrden(id: String, nuevoOrden: Int) =
+        metricaDao.actualizarOrden(id, nuevoOrden)
+
+    suspend fun siguienteOrden(): Int = metricaDao.maxOrden() + 1
+
+    suspend fun agregarRegistro(registro: RegistroSuma): Long =
+        metricaDao.insertRegistro(registro)
+
+    suspend fun hayMetricas(): Boolean = metricaDao.contarMetricas() > 0
+
+    // ---- Notas ----
+    val notas: Flow<List<Nota>> = notaDao.observarNotas()
+    suspend fun guardarNota(nota: Nota) = notaDao.upsert(nota)
+    suspend fun eliminarNota(nota: Nota) = notaDao.eliminar(nota)
+
+    // ---- Calculadora ----
+    val historialCalculos: Flow<List<CalculoHistorial>> = calculoDao.observarHistorial()
+    suspend fun guardarCalculo(calculo: CalculoHistorial) = calculoDao.insertar(calculo)
+    suspend fun limpiarCalculos() = calculoDao.limpiar()
 
     /** Devuelve [inicioDia, finDia) en milisegundos epoch para hoy. */
     private fun rangoDelDiaActual(): Pair<Long, Long> {
