@@ -57,6 +57,10 @@ class MetricaRepository(
     suspend fun limpiarDia(inicio: Long, fin: Long) =
         metricaDao.eliminarRegistrosEnRango(inicio, fin)
 
+    /** Borra los registros de UNA metrica en un dia (rango [inicio, fin)). */
+    suspend fun limpiarMetricaDia(metricaId: String, inicio: Long, fin: Long) =
+        metricaDao.eliminarRegistrosDeMetricaEnRango(metricaId, inicio, fin)
+
     suspend fun hayMetricas(): Boolean = metricaDao.contarMetricas() > 0
 
     // ---- Estado del dia ----

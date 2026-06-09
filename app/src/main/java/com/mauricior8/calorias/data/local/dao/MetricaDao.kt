@@ -56,6 +56,10 @@ interface MetricaDao {
     @Query("DELETE FROM registros WHERE timestamp >= :inicio AND timestamp < :fin")
     suspend fun eliminarRegistrosEnRango(inicio: Long, fin: Long)
 
+    // Eliminar los registros de UNA metrica dentro de un rango (limpiar esa tarjeta).
+    @Query("DELETE FROM registros WHERE metricaId = :metricaId AND timestamp >= :inicio AND timestamp < :fin")
+    suspend fun eliminarRegistrosDeMetricaEnRango(metricaId: String, inicio: Long, fin: Long)
+
     // Actualizar el orden de una metrica concreta.
     @Query("UPDATE metricas SET orden = :nuevoOrden WHERE id = :id")
     suspend fun actualizarOrden(id: String, nuevoOrden: Int)

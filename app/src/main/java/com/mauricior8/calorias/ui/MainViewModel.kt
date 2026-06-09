@@ -120,6 +120,14 @@ class MainViewModel(
         viewModelScope.launch { repository.limpiarDia(inicio, finDeDia(inicio)) }
     }
 
+    /** Limpia (borra) los registros de una metrica en el dia seleccionado. */
+    fun limpiarMetrica(metricaId: String) {
+        val inicio = _inicioDiaSeleccionado.value
+        viewModelScope.launch {
+            repository.limpiarMetricaDia(metricaId, inicio, finDeDia(inicio))
+        }
+    }
+
     fun marcarDiaCompletado(completado: Boolean) {
         val fecha = fechaKey(_inicioDiaSeleccionado.value)
         viewModelScope.launch { repository.guardarEstadoDia(EstadoDia(fecha, completado)) }
@@ -171,7 +179,8 @@ class MainViewModel(
         nombre: String,
         unidad: String,
         limiteMaximo: Float? = null,
-        colorHex: String = "#FF6D00"
+        colorHex: String = "#FF6D00",
+        tipoGrafica: String = "Anillo"
     ) {
         val nombreLimpio = nombre.trim()
         if (nombreLimpio.isEmpty()) return
@@ -183,7 +192,8 @@ class MainViewModel(
                     unidad = unidad,
                     limiteMaximo = limiteMaximo,
                     colorHex = colorHex,
-                    orden = repository.siguienteOrden()
+                    orden = repository.siguienteOrden(),
+                    tipoGrafica = tipoGrafica
                 )
             )
         }

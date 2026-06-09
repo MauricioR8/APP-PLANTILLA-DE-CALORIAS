@@ -44,7 +44,7 @@ import com.mauricior8.calorias.util.colorDesdeHex
 @Composable
 fun MetricaEditorDialog(
     metricaExistente: MetricaConfig? = null,
-    onConfirmar: (nombre: String, unidad: String, limite: Float?, colorHex: String) -> Unit,
+    onConfirmar: (nombre: String, unidad: String, limite: Float?, colorHex: String, tipoGrafica: String) -> Unit,
     onCancelar: () -> Unit
 ) {
     var nombre by remember { mutableStateOf(metricaExistente?.nombre ?: "") }
@@ -55,7 +55,9 @@ fun MetricaEditorDialog(
         } ?: "")
     }
     var colorHex by remember { mutableStateOf(metricaExistente?.colorHex ?: ColoresMetrica.first()) }
+    var tipoGrafica by remember { mutableStateOf(metricaExistente?.tipoGrafica ?: "Anillo") }
     val unidades = listOf("kcal", "gr", "mg", "L")
+    val tiposGrafica = listOf("Anillo", "Pastel", "Barras")
 
     AlertDialog(
         onDismissRequest = onCancelar,
@@ -121,11 +123,22 @@ fun MetricaEditorDialog(
                         }
                     }
                 }
+
+                Text("Tipo de grafica en la tarjeta")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    tiposGrafica.forEach { t ->
+                        FilterChip(
+                            selected = tipoGrafica == t,
+                            onClick = { tipoGrafica = t },
+                            label = { Text(t) }
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirmar(nombre, unidad, limite.toFloatOrNull(), colorHex) }
+                onClick = { onConfirmar(nombre, unidad, limite.toFloatOrNull(), colorHex, tipoGrafica) }
             ) { Text(if (metricaExistente == null) "Crear" else "Guardar") }
         },
         dismissButton = {

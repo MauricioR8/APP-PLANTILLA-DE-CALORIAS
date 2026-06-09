@@ -105,6 +105,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 onVerHistorial = { metricaHistorial = it },
                 onEditar = { metricaEnEdicion = it; mostrarEditor = true },
                 onEliminar = viewModel::eliminarMetrica,
+                onLimpiarMetrica = viewModel::limpiarMetrica,
                 onMoverArriba = viewModel::moverArriba,
                 onMoverAbajo = viewModel::moverAbajo,
                 modifier = Modifier.padding(padding)
@@ -145,6 +146,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.editarAlimentoGuardado(a, nombre, valores)
             },
             onEliminarGuardado = { viewModel.eliminarAlimentoGuardado(it) },
+            onGuardarNota = { viewModel.guardarNota(it) },
             onCancelar = { mostrarAlimento = false }
         )
     }
@@ -153,17 +155,18 @@ fun MainScreen(viewModel: MainViewModel) {
     if (mostrarEditor) {
         MetricaEditorDialog(
             metricaExistente = metricaEnEdicion,
-            onConfirmar = { nombre, unidad, limite, colorHex ->
+            onConfirmar = { nombre, unidad, limite, colorHex, tipoGrafica ->
                 val enEdicion = metricaEnEdicion
                 if (enEdicion == null) {
-                    viewModel.crearMetrica(nombre, unidad, limite, colorHex)
+                    viewModel.crearMetrica(nombre, unidad, limite, colorHex, tipoGrafica)
                 } else {
                     viewModel.editarMetrica(
                         enEdicion.copy(
                             nombre = nombre.trim(),
                             unidad = unidad,
                             limiteMaximo = limite,
-                            colorHex = colorHex
+                            colorHex = colorHex,
+                            tipoGrafica = tipoGrafica
                         )
                     )
                 }

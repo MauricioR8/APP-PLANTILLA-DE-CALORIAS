@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,12 +53,14 @@ fun AgregarAlimentoDialog(
     onAplicar: (AlimentoGuardado) -> Unit,
     onEditarGuardado: (AlimentoGuardado, nombre: String, valores: Map<String, Float>) -> Unit,
     onEliminarGuardado: (AlimentoGuardado) -> Unit,
+    onGuardarNota: (String) -> Unit,
     onCancelar: () -> Unit
 ) {
     var nombre by remember { mutableStateOf("") }
     val valores = remember { mutableStateMapOf<String, String>() }
     var intentoEnviar by remember { mutableStateOf(false) }
     var editando by remember { mutableStateOf<AlimentoGuardado?>(null) }
+    var guardarComoNota by remember { mutableStateOf(false) }
 
     fun esObligatoria(m: MetricaConfig): Boolean {
         val n = m.nombre.lowercase(Locale.getDefault())
@@ -123,6 +126,16 @@ fun AgregarAlimentoDialog(
 
                 Text("* Campos obligatorios", fontWeight = FontWeight.Light)
 
+                if (editando == null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = guardarComoNota,
+                            onCheckedChange = { guardarComoNota = it }
+                        )
+                        Text("Guardar tambien como nota (editable en Notas)")
+                    }
+                }
+
                 if (alimentos.isNotEmpty()) {
                     HorizontalDivider(Modifier.padding(vertical = 4.dp))
                     Text(
@@ -164,6 +177,13 @@ fun AgregarAlimentoDialog(
                     }.toMap()
                     val enEdicion = editando
                     if (enEdicion == null) {
+                        if (guardarComoNota) {
+                            val resumen = metricas.mapNotNull { m ->
+                                mapa[m.id]?.let { "${m.nombre}: ${if (it % 1f == 0f) it.toInt() else it} ${m.unidad}" }
+                            }.joinToString(", ")
+                            val nombreNota = nombre.trim().ifEmpty { "Alimento" }
+                            onGuardarNota("$nombreNota - $resumen")
+                        }
                         onConfirmar(nombre, mapa)
                     } else {
                         onEditarGuardado(enEdicion, nombre, mapa)

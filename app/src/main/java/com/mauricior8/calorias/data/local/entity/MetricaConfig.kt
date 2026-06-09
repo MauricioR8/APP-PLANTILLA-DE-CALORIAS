@@ -13,6 +13,7 @@ import androidx.room.PrimaryKey
  * @param limiteMaximo  Limite/objetivo maximo diario opcional. Si es null no hay limite.
  * @param colorHex  Color asociado para la UI en formato "#RRGGBB".
  * @param orden     Posicion en la lista (para reordenar arriba/abajo).
+ * @param tipoGrafica Estilo visual en la tarjeta: "Anillo", "Pastel" o "Barras".
  */
 @Entity(tableName = "metricas")
 data class MetricaConfig(
@@ -22,5 +23,6 @@ data class MetricaConfig(
     val unidad: String,
     val limiteMaximo: Float? = null,
     val colorHex: String = "#FF6D00",
-    val orden: Int = 0
+    val orden: Int = 0,
+    val tipoGrafica: String = "Anillo"
 )

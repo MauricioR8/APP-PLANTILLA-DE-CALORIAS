@@ -1,6 +1,7 @@
 package com.mauricior8.calorias.ui.screen
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +58,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -89,6 +92,7 @@ fun MetricasScreen(
     onVerHistorial: (MetricaConfig) -> Unit,
     onEditar: (MetricaConfig) -> Unit,
     onEliminar: (MetricaConfig) -> Unit,
+    onLimpiarMetrica: (String) -> Unit,
     onMoverArriba: (String) -> Unit,
     onMoverAbajo: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -147,6 +151,7 @@ fun MetricasScreen(
                         onVerHistorial = { onVerHistorial(item.config) },
                         onEditar = { onEditar(item.config) },
                         onEliminar = { onEliminar(item.config) },
+                        onLimpiar = { onLimpiarMetrica(item.config.id) },
                         onMoverArriba = { onMoverArriba(item.config.id) },
                         onMoverAbajo = { onMoverAbajo(item.config.id) }
                     )
@@ -346,6 +351,7 @@ private fun MetricaCard(
     onVerHistorial: () -> Unit,
     onEditar: () -> Unit,
     onEliminar: () -> Unit,
+    onLimpiar: () -> Unit,
     onMoverArriba: () -> Unit,
     onMoverAbajo: () -> Unit
 ) {
@@ -361,23 +367,13 @@ private fun MetricaCard(
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Anillo de progreso con el porcentaje.
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(56.dp)) {
-                    CircularProgressIndicator(
-                        progress = { if (item.config.limiteMaximo != null) progresoAnim else 1f },
-                        modifier = Modifier.size(56.dp),
-                        color = color,
-                        trackColor = color.copy(alpha = 0.18f),
-                        strokeWidth = 6.dp
-                    )
-                    if (item.config.limiteMaximo != null) {
-                        Text(
-                            "${(item.progreso * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                // Mini-grafica segun el tipo elegido (Anillo, Pastel o Barras).
+                MiniGrafica(
+                    tipo = item.config.tipoGrafica,
+                    progreso = progresoAnim,
+                    tieneLimite = item.config.limiteMaximo != null,
+                    color = color
+                )
 
                 Spacer(Modifier.width(14.dp))
 
@@ -426,6 +422,11 @@ private fun MetricaCard(
                             enabled = !esUltimo,
                             leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) },
                             onClick = { menuAbierto = false; onMoverAbajo() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Limpiar datos de hoy") },
+                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                            onClick = { menuAbierto = false; onLimpiar() }
                         )
                         DropdownMenuItem(
                             text = { Text("Eliminar") },
@@ -486,6 +487,82 @@ private fun MetricaCard(
                     Text("Agregar")
                 }
             }
+        }
+    }
+}
+
+
+/**
+ * Mini-grafica de progreso para la tarjeta de metrica, segun el tipo elegido.
+ */
+@Composable
+private fun MiniGrafica(
+    tipo: String,
+    progreso: Float,
+    tieneLimite: Boolean,
+    color: Color
+) {
+    val porcentaje = (progreso * 100).toInt()
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(56.dp)) {
+        when (tipo) {
+            "Pastel" -> {
+                Canvas(modifier = Modifier.size(56.dp)) {
+                    // Fondo del pastel.
+                    drawArc(
+                        color = color.copy(alpha = 0.18f),
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = true,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(size.width, size.height)
+                    )
+                    // Porcion segun progreso.
+                    drawArc(
+                        color = color,
+                        startAngle = -90f,
+                        sweepAngle = (if (tieneLimite) progreso else 1f) * 360f,
+                        useCenter = true,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(size.width, size.height)
+                    )
+                }
+            }
+            "Barras" -> {
+                Canvas(modifier = Modifier.size(56.dp)) {
+                    val anchoBarra = size.width * 0.45f
+                    val x = (size.width - anchoBarra) / 2f
+                    // Fondo.
+                    drawRect(
+                        color = color.copy(alpha = 0.18f),
+                        topLeft = Offset(x, 0f),
+                        size = Size(anchoBarra, size.height)
+                    )
+                    // Relleno segun progreso.
+                    val altura = (if (tieneLimite) progreso else 1f) * size.height
+                    drawRect(
+                        color = color,
+                        topLeft = Offset(x, size.height - altura),
+                        size = Size(anchoBarra, altura)
+                    )
+                }
+            }
+            else -> {
+                // Anillo (por defecto).
+                CircularProgressIndicator(
+                    progress = { if (tieneLimite) progreso else 1f },
+                    modifier = Modifier.size(56.dp),
+                    color = color,
+                    trackColor = color.copy(alpha = 0.18f),
+                    strokeWidth = 6.dp
+                )
+            }
+        }
+        if (tieneLimite) {
+            Text(
+                "$porcentaje%",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

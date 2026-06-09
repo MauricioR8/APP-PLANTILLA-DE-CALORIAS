@@ -41,14 +41,13 @@ jobs:
       - name: Publish APK to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v5.0-final
-          name: "APK v5.0 - Graficas, historial de alimentos, fecha manual y diseno renovado"
+          tag_name: v6.0
+          name: "APK v6.0 - Limpiar por metrica, grafica por tarjeta y nota de alimento"
           body: |
-            APK de depuracion (version 5.0 - final).
-            Novedades: historial de alimentos editable, fecha manual (dia/mes/anio),
-            "dia completado" en verde, graficas en las tablas (barras, histograma,
-            pastel y picos), paleta de colores moderna, icono nuevo (tenedor + hojas)
-            y nombre "Herramienta Calorias Macros".
+            APK de depuracion (version 6.0).
+            Novedades: cada tarjeta de Mi dia tiene su boton de "Limpiar datos de hoy",
+            tipo de grafica por tarjeta (Anillo, Pastel o Barras) editable, y opcion de
+            guardar un alimento tambien como nota editable.
             Descarga `app-debug.apk` desde los Assets e instalalo en tu Samsung A15
             (habilita "Instalar apps de origen desconocido").
           files: app/build/outputs/apk/debug/app-debug.apk
