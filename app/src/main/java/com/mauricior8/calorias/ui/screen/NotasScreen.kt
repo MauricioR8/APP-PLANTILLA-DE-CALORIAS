@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -60,7 +61,7 @@ fun NotasScreen(
             label = { Text("Escribe una nota...") },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .heightIn(min = 120.dp)
         )
         Spacer(Modifier.height(8.dp))
         Button(

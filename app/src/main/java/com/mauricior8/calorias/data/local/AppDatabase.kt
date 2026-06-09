@@ -7,19 +7,28 @@ import androidx.room.RoomDatabase
 import com.mauricior8.calorias.data.local.dao.CalculoDao
 import com.mauricior8.calorias.data.local.dao.MetricaDao
 import com.mauricior8.calorias.data.local.dao.NotaDao
+import com.mauricior8.calorias.data.local.dao.TablaDao
 import com.mauricior8.calorias.data.local.entity.CalculoHistorial
+import com.mauricior8.calorias.data.local.entity.CeldaTabla
+import com.mauricior8.calorias.data.local.entity.ColumnaTabla
+import com.mauricior8.calorias.data.local.entity.FilaTabla
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.data.local.entity.Nota
 import com.mauricior8.calorias.data.local.entity.RegistroSuma
+import com.mauricior8.calorias.data.local.entity.TablaAlimentos
 
 @Database(
     entities = [
         MetricaConfig::class,
         RegistroSuma::class,
         Nota::class,
-        CalculoHistorial::class
+        CalculoHistorial::class,
+        TablaAlimentos::class,
+        ColumnaTabla::class,
+        FilaTabla::class,
+        CeldaTabla::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun metricaDao(): MetricaDao
     abstract fun notaDao(): NotaDao
     abstract fun calculoDao(): CalculoDao
+    abstract fun tablaDao(): TablaDao
 
     companion object {
         @Volatile

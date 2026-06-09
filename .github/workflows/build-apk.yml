@@ -41,11 +41,14 @@ jobs:
       - name: Publish APK to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest-debug
-          name: APK de prueba (debug)
+          tag_name: v3.0-tablas
+          name: "APK v3.0 - Tablas de alimentos, alimentos y metas"
           body: |
-            APK de depuracion generado automaticamente desde el ultimo commit en main.
-            Descarga `app-debug.apk` desde los Assets y instalalo en tu Samsung A15
+            APK de depuracion (version 3.0).
+            Novedades: agregar alimento (calorias y proteina obligatorias),
+            panel de metas del dia, notas expandibles y nueva pestaña
+            "Tablas de alimentos".
+            Descarga `app-debug.apk` desde los Assets e instalalo en tu Samsung A15
             (habilita "Instalar apps de origen desconocido").
           files: app/build/outputs/apk/debug/app-debug.apk
           fail_on_unmatched_files: true

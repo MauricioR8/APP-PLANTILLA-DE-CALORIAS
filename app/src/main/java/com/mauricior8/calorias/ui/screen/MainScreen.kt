@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +30,8 @@ import com.mauricior8.calorias.ui.MainViewModel
 private enum class Pestana(val titulo: String, val icono: ImageVector) {
     METRICAS("Mi dia", Icons.Filled.Star),
     NOTAS("Notas", Icons.Filled.Edit),
-    CALCULADORA("Calculadora", Icons.AutoMirrored.Filled.List)
+    CALCULADORA("Calculadora", Icons.AutoMirrored.Filled.List),
+    TABLAS("Tablas", Icons.Filled.DateRange)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +47,7 @@ fun MainScreen(viewModel: MainViewModel) {
     var mostrarEditor by remember { mutableStateOf(false) }
     var metricaEnEdicion by remember { mutableStateOf<MetricaConfig?>(null) }
     var metricaHistorial by remember { mutableStateOf<MetricaConfig?>(null) }
+    var mostrarAlimento by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -84,6 +87,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 metricas = state.metricas,
                 isLoading = state.isLoading,
                 onAgregar = viewModel::agregarRegistro,
+                onAgregarAlimento = { mostrarAlimento = true },
                 onVerHistorial = { metricaHistorial = it },
                 onEditar = { metricaEnEdicion = it; mostrarEditor = true },
                 onEliminar = viewModel::eliminarMetrica,
@@ -105,7 +109,24 @@ fun MainScreen(viewModel: MainViewModel) {
                 onLimpiarHistorial = viewModel::limpiarHistorialCalculos,
                 modifier = Modifier.padding(padding)
             )
+
+            Pestana.TABLAS -> TablasScreen(
+                viewModel = viewModel,
+                modifier = Modifier.padding(padding)
+            )
         }
+    }
+
+    // Dialogo agregar alimento (aporta a varias metricas).
+    if (mostrarAlimento) {
+        AgregarAlimentoDialog(
+            metricas = state.metricas.map { it.config },
+            onConfirmar = { nombre, valores ->
+                viewModel.agregarAlimento(nombre, valores)
+                mostrarAlimento = false
+            },
+            onCancelar = { mostrarAlimento = false }
+        )
     }
 
     // Dialogo crear/editar metrica.

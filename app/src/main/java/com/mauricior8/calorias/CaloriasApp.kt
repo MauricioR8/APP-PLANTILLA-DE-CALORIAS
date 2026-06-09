@@ -16,7 +16,8 @@ class CaloriasApp : Application() {
         MetricaRepository(
             metricaDao = database.metricaDao(),
             notaDao = database.notaDao(),
-            calculoDao = database.calculoDao()
+            calculoDao = database.calculoDao(),
+            tablaDao = database.tablaDao()
         )
     }
 }

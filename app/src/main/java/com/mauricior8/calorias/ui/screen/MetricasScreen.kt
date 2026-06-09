@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -63,6 +64,7 @@ fun MetricasScreen(
     metricas: List<MetricaConItem>,
     isLoading: Boolean,
     onAgregar: (metricaId: String, valor: Float) -> Unit,
+    onAgregarAlimento: () -> Unit,
     onVerHistorial: (MetricaConfig) -> Unit,
     onEditar: (MetricaConfig) -> Unit,
     onEliminar: (MetricaConfig) -> Unit,
@@ -85,6 +87,19 @@ fun MetricasScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
             ) {
+                item(key = "metas") {
+                    MetasPanel(metricas = metricas)
+                }
+                item(key = "btn_alimento") {
+                    Button(
+                        onClick = onAgregarAlimento,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Agregar alimento")
+                    }
+                }
                 items(metricas, key = { it.config.id }) { item ->
                     MetricaCard(
                         item = item,
@@ -96,6 +111,55 @@ fun MetricasScreen(
                         onEliminar = { onEliminar(item.config) },
                         onMoverArriba = { onMoverArriba(item.config.id) },
                         onMoverAbajo = { onMoverAbajo(item.config.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Panel superior con las metas/limites del dia. Muestra cada metrica que tiene
+ * limite y avisa en rojo cuando se sobrepasa.
+ */
+@Composable
+private fun MetasPanel(metricas: List<MetricaConItem>) {
+    val conLimite = metricas.filter { it.config.limiteMaximo != null }
+    if (conLimite.isEmpty()) return
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "Metas del dia",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(Modifier.height(10.dp))
+            conLimite.forEach { item ->
+                val limite = item.config.limiteMaximo ?: 0f
+                val excedido = item.totalHoy > limite
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        item.config.nombre,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "${formatoValor(item.totalHoy)} / ${formatoValor(limite)} ${item.config.unidad}" +
+                            if (excedido) "  ¡Excedido!" else "",
+                        fontWeight = if (excedido) FontWeight.Bold else FontWeight.Normal,
+                        color = if (excedido) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
