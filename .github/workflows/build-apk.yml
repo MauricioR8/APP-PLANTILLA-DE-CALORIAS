@@ -41,13 +41,13 @@ jobs:
       - name: Publish APK to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.0-tablas
-          name: "APK v3.0 - Tablas de alimentos, alimentos y metas"
+          tag_name: v4.0-dias
+          name: "APK v4.0 - Dias de la semana, limpiar dia y mejoras"
           body: |
-            APK de depuracion (version 3.0).
-            Novedades: agregar alimento (calorias y proteina obligatorias),
-            panel de metas del dia, notas expandibles y nueva pestaña
-            "Tablas de alimentos".
+            APK de depuracion (version 4.0).
+            Novedades: selector de dia de la semana (datos independientes por dia),
+            boton para limpiar/reiniciar el dia, marca de "dia completado",
+            metas con barras del color de cada atributo y notas abribles/editables.
             Descarga `app-debug.apk` desde los Assets e instalalo en tu Samsung A15
             (habilita "Instalar apps de origen desconocido").
           files: app/build/outputs/apk/debug/app-debug.apk

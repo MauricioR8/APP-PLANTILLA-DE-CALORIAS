@@ -1,12 +1,14 @@
 package com.mauricior8.calorias.data.repository
 
 import com.mauricior8.calorias.data.local.dao.CalculoDao
+import com.mauricior8.calorias.data.local.dao.EstadoDiaDao
 import com.mauricior8.calorias.data.local.dao.MetricaDao
 import com.mauricior8.calorias.data.local.dao.NotaDao
 import com.mauricior8.calorias.data.local.dao.TablaDao
 import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.CeldaTabla
 import com.mauricior8.calorias.data.local.entity.ColumnaTabla
+import com.mauricior8.calorias.data.local.entity.EstadoDia
 import com.mauricior8.calorias.data.local.entity.FilaTabla
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.data.local.entity.Nota
@@ -23,16 +25,16 @@ class MetricaRepository(
     private val metricaDao: MetricaDao,
     private val notaDao: NotaDao,
     private val calculoDao: CalculoDao,
-    private val tablaDao: TablaDao
+    private val tablaDao: TablaDao,
+    private val estadoDiaDao: EstadoDiaDao
 ) {
 
     // ---- Metricas ----
     val metricas: Flow<List<MetricaConfig>> = metricaDao.observarMetricas()
 
-    val totalesDeHoy: Flow<List<MetricaTotal>> = run {
-        val (inicio, fin) = rangoDelDiaActual()
+    /** Totales agregados por metrica para un rango de dia arbitrario. */
+    fun totalesDeDia(inicio: Long, fin: Long): Flow<List<MetricaTotal>> =
         metricaDao.observarTotalesDelDia(inicio, fin)
-    }
 
     fun historial(metricaId: String): Flow<List<RegistroSuma>> =
         metricaDao.observarHistorial(metricaId)
@@ -49,7 +51,15 @@ class MetricaRepository(
     suspend fun agregarRegistro(registro: RegistroSuma): Long =
         metricaDao.insertRegistro(registro)
 
+    /** Borra todos los registros de un dia (rango [inicio, fin)). */
+    suspend fun limpiarDia(inicio: Long, fin: Long) =
+        metricaDao.eliminarRegistrosEnRango(inicio, fin)
+
     suspend fun hayMetricas(): Boolean = metricaDao.contarMetricas() > 0
+
+    // ---- Estado del dia ----
+    fun observarEstadoDia(fecha: String): Flow<EstadoDia?> = estadoDiaDao.observar(fecha)
+    suspend fun guardarEstadoDia(estado: EstadoDia) = estadoDiaDao.upsert(estado)
 
     // ---- Notas ----
     val notas: Flow<List<Nota>> = notaDao.observarNotas()
@@ -103,6 +113,18 @@ class MetricaRepository(
                 valor = valor
             )
         )
+    }
+
+    /** Devuelve [inicioDia, finDia) en milisegundos epoch para hoy. */
+    private fun rangoDelDiaActual(): Pair<Long, Long> {
+        val inicio = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val fin = (inicio.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, 1) }
+        return inicio.timeInMillis to fin.timeInMillis
     }
 
     /** Devuelve [inicioDia, finDia) en milisegundos epoch para hoy. */

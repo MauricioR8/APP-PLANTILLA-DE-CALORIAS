@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.CeldaTabla
 import com.mauricior8.calorias.data.local.entity.ColumnaTabla
+import com.mauricior8.calorias.data.local.entity.EstadoDia
 import com.mauricior8.calorias.data.local.entity.FilaTabla
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.data.local.entity.Nota
@@ -15,14 +16,22 @@ import com.mauricior8.calorias.data.repository.MetricaRepository
 import com.mauricior8.calorias.util.Calculadora
 import com.mauricior8.calorias.ui.state.MetricaConItem
 import com.mauricior8.calorias.ui.state.UiState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel(
     private val repository: MetricaRepository
 ) : ViewModel() {
@@ -31,21 +40,56 @@ class MainViewModel(
         sembrarMetricasPorDefecto()
     }
 
+    // Formateadores de fecha (declarados arriba para estar listos al construir).
+    private val fmtFechaKey = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val fmtEtiqueta = SimpleDateFormat("dd/MM", Locale.getDefault())
+
+    // ---------------- Seleccion de dia ----------------
+
+    /** Inicio (00:00) del dia seleccionado, en milisegundos epoch. */
+    private val _inicioDiaSeleccionado = MutableStateFlow(inicioDeHoy())
+
+    /** Etiquetas de Lunes a Domingo. */
+    val diasSemana: List<String> = listOf(
+        "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"
+    )
+
+    /** Indice (0=Lunes ... 6=Domingo) del dia seleccionado. */
+    val indiceDiaSeleccionado: StateFlow<Int> =
+        _inicioDiaSeleccionado.map { indiceSemana(it) }.stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(5_000), indiceSemana(inicioDeHoy())
+        )
+
+    /** Etiqueta legible del dia, ej. "Lunes 09/06". */
+    val etiquetaDiaSeleccionado: StateFlow<String> =
+        _inicioDiaSeleccionado.map { etiquetaDia(it) }.stateIn(
+            viewModelScope, SharingStarted.WhileSubscribed(5_000), etiquetaDia(inicioDeHoy())
+        )
+
+    /** Si el dia seleccionado esta marcado como completado. */
+    val diaCompletado: StateFlow<Boolean> =
+        _inicioDiaSeleccionado.flatMapLatest { inicio ->
+            repository.observarEstadoDia(fechaKey(inicio)).map { it?.completado ?: false }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     // ---------------- Estado de Metricas ----------------
 
     val uiState: StateFlow<UiState> =
-        combine(
-            repository.metricas,
-            repository.totalesDeHoy
-        ) { metricas, totales ->
-            val totalesPorId = totales.associate { it.metricaId to it.total }
-            val items = metricas.map { config ->
-                MetricaConItem(
-                    config = config,
-                    totalHoy = totalesPorId[config.id] ?: 0f
-                )
+        _inicioDiaSeleccionado.flatMapLatest { inicio ->
+            val fin = finDeDia(inicio)
+            combine(
+                repository.metricas,
+                repository.totalesDeDia(inicio, fin)
+            ) { metricas, totales ->
+                val totalesPorId = totales.associate { it.metricaId to it.total }
+                val items = metricas.map { config ->
+                    MetricaConItem(
+                        config = config,
+                        totalHoy = totalesPorId[config.id] ?: 0f
+                    )
+                }
+                UiState(isLoading = false, metricas = items)
             }
-            UiState(isLoading = false, metricas = items)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -53,6 +97,20 @@ class MainViewModel(
         )
 
     fun historial(metricaId: String) = repository.historial(metricaId)
+
+    fun seleccionarDia(indice: Int) {
+        _inicioDiaSeleccionado.value = inicioDeDiaSemana(indice)
+    }
+
+    fun limpiarDia() {
+        val inicio = _inicioDiaSeleccionado.value
+        viewModelScope.launch { repository.limpiarDia(inicio, finDeDia(inicio)) }
+    }
+
+    fun marcarDiaCompletado(completado: Boolean) {
+        val fecha = fechaKey(_inicioDiaSeleccionado.value)
+        viewModelScope.launch { repository.guardarEstadoDia(EstadoDia(fecha, completado)) }
+    }
 
     // ---------------- Estado de Notas ----------------
 
@@ -152,6 +210,7 @@ class MainViewModel(
                 RegistroSuma(
                     metricaId = metricaId,
                     valor = valor,
+                    timestamp = timestampParaRegistro(),
                     tipo = tipo,
                     detalle = detalle
                 )
@@ -171,11 +230,13 @@ class MainViewModel(
         val aportes = valores.filterValues { it > 0f }
         if (aportes.isEmpty()) return
         viewModelScope.launch {
+            val ts = timestampParaRegistro()
             aportes.forEach { (metricaId, valor) ->
                 repository.agregarRegistro(
                     RegistroSuma(
                         metricaId = metricaId,
                         valor = valor,
+                        timestamp = ts,
                         tipo = "alimento",
                         detalle = nombreLimpio
                     )
@@ -280,6 +341,56 @@ class MainViewModel(
             .replace("[^a-z0-9]+".toRegex(), "_")
             .trim('_')
         return "${slug}_${System.currentTimeMillis()}"
+    }
+
+    // ---------------- Helpers de fecha ----------------
+
+    private fun fechaKey(inicio: Long): String = fmtFechaKey.format(Date(inicio))
+
+    private fun etiquetaDia(inicio: Long): String =
+        "${diasSemana[indiceSemana(inicio)]} ${fmtEtiqueta.format(Date(inicio))}"
+
+    /** Devuelve el inicio (00:00) de hoy. */
+    private fun inicioDeHoy(): Long = aMedianoche(Calendar.getInstance())
+
+    /** Inicio del dia indicado (0=Lunes..6=Domingo) en la semana actual. */
+    private fun inicioDeDiaSemana(indice: Int): Long {
+        val c = Calendar.getInstance()
+        // Calendar: DOMINGO=1..SABADO=7. Convertimos a Lunes=0..Domingo=6.
+        val actual = (c.get(Calendar.DAY_OF_WEEK) + 5) % 7
+        c.add(Calendar.DAY_OF_MONTH, indice - actual)
+        return aMedianoche(c)
+    }
+
+    private fun indiceSemana(inicio: Long): Int {
+        val c = Calendar.getInstance().apply { timeInMillis = inicio }
+        return (c.get(Calendar.DAY_OF_WEEK) + 5) % 7
+    }
+
+    private fun finDeDia(inicio: Long): Long {
+        val c = Calendar.getInstance().apply {
+            timeInMillis = inicio
+            add(Calendar.DAY_OF_MONTH, 1)
+        }
+        return c.timeInMillis
+    }
+
+    private fun aMedianoche(c: Calendar): Long {
+        c.set(Calendar.HOUR_OF_DAY, 0)
+        c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        return c.timeInMillis
+    }
+
+    /**
+     * Timestamp para un registro nuevo: si el dia seleccionado es hoy usa la
+     * hora actual; si no, usa el mediodia de ese dia (para que caiga en rango).
+     */
+    private fun timestampParaRegistro(): Long {
+        val inicio = _inicioDiaSeleccionado.value
+        return if (inicio == inicioDeHoy()) System.currentTimeMillis()
+        else inicio + 12L * 60 * 60 * 1000
     }
 
     class Factory(

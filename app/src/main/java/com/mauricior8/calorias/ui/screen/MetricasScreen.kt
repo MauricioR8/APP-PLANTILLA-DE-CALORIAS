@@ -21,14 +21,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,6 +39,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,6 +67,13 @@ import com.mauricior8.calorias.util.formatoValor
 fun MetricasScreen(
     metricas: List<MetricaConItem>,
     isLoading: Boolean,
+    diasSemana: List<String>,
+    indiceDia: Int,
+    etiquetaDia: String,
+    diaCompletado: Boolean,
+    onSeleccionarDia: (Int) -> Unit,
+    onToggleCompletado: (Boolean) -> Unit,
+    onLimpiarDia: () -> Unit,
     onAgregar: (metricaId: String, valor: Float) -> Unit,
     onAgregarAlimento: () -> Unit,
     onVerHistorial: (MetricaConfig) -> Unit,
@@ -75,11 +86,6 @@ fun MetricasScreen(
     Box(modifier = modifier.fillMaxSize()) {
         when {
             isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-            metricas.isEmpty() -> Text(
-                "No hay metricas. Pulsa + para crear una.",
-                modifier = Modifier.align(Alignment.Center),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -87,8 +93,19 @@ fun MetricasScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
             ) {
-                item(key = "metas") {
-                    MetasPanel(metricas = metricas)
+                item(key = "selector_dia") {
+                    SelectorDia(
+                        diasSemana = diasSemana,
+                        indiceDia = indiceDia,
+                        etiquetaDia = etiquetaDia,
+                        diaCompletado = diaCompletado,
+                        onSeleccionarDia = onSeleccionarDia,
+                        onToggleCompletado = onToggleCompletado,
+                        onLimpiarDia = onLimpiarDia
+                    )
+                }
+                if (metricas.isNotEmpty()) {
+                    item(key = "metas") { MetasPanel(metricas = metricas) }
                 }
                 item(key = "btn_alimento") {
                     Button(
@@ -98,6 +115,15 @@ fun MetricasScreen(
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("Agregar alimento")
+                    }
+                }
+                if (metricas.isEmpty()) {
+                    item(key = "vacio") {
+                        Text(
+                            "No hay metricas. Pulsa + para crear una.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 24.dp)
+                        )
                     }
                 }
                 items(metricas, key = { it.config.id }) { item ->
@@ -119,8 +145,74 @@ fun MetricasScreen(
 }
 
 /**
- * Panel superior con las metas/limites del dia. Muestra cada metrica que tiene
- * limite y avisa en rojo cuando se sobrepasa.
+ * Selector del dia de la semana (Lunes-Domingo), con marca de "dia completado"
+ * y boton para limpiar/reiniciar los datos del dia.
+ */
+@Composable
+private fun SelectorDia(
+    diasSemana: List<String>,
+    indiceDia: Int,
+    etiquetaDia: String,
+    diaCompletado: Boolean,
+    onSeleccionarDia: (Int) -> Unit,
+    onToggleCompletado: (Boolean) -> Unit,
+    onLimpiarDia: () -> Unit
+) {
+    var menuAbierto by remember { mutableStateOf(false) }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { menuAbierto = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(etiquetaDia, modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Elegir dia")
+                    }
+                    DropdownMenu(
+                        expanded = menuAbierto,
+                        onDismissRequest = { menuAbierto = false }
+                    ) {
+                        diasSemana.forEachIndexed { i, dia ->
+                            DropdownMenuItem(
+                                text = { Text(dia) },
+                                onClick = { menuAbierto = false; onSeleccionarDia(i) }
+                            )
+                        }
+                    }
+                }
+                IconButton(onClick = onLimpiarDia) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Limpiar dia",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = diaCompletado, onCheckedChange = onToggleCompletado)
+                Text("Dia completado (calorias y macros)")
+            }
+        }
+    }
+}
+
+/**
+ * Panel superior con las metas/limites del dia. Cada atributo se muestra con su
+ * propio color (el de la metrica) y una barra de progreso; avisa cuando se pasa.
  */
 @Composable
 private fun MetasPanel(metricas: List<MetricaConItem>) {
@@ -130,36 +222,65 @@ private fun MetasPanel(metricas: List<MetricaConItem>) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
                 "Metas del dia",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(10.dp))
-            conLimite.forEach { item ->
+            Spacer(Modifier.height(12.dp))
+            conLimite.forEachIndexed { index, item ->
+                if (index > 0) Spacer(Modifier.height(12.dp))
+                val color = colorDesdeHex(item.config.colorHex)
                 val limite = item.config.limiteMaximo ?: 0f
                 val excedido = item.totalHoy > limite
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 3.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        item.config.nombre,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(12.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(color)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            item.config.nombre,
+                            fontWeight = FontWeight.SemiBold,
+                            color = color
+                        )
+                    }
                     Text(
                         text = "${formatoValor(item.totalHoy)} / ${formatoValor(limite)} ${item.config.unidad}" +
                             if (excedido) "  ¡Excedido!" else "",
                         fontWeight = if (excedido) FontWeight.Bold else FontWeight.Normal,
-                        color = if (excedido) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onPrimaryContainer
+                        color = if (excedido) MaterialTheme.colorScheme.error else color
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(color.copy(alpha = 0.18f))
+                    )
+                    Box(
+                        Modifier
+                            .fillMaxWidth(item.progreso)
+                            .fillMaxSize()
+                            .background(if (excedido) MaterialTheme.colorScheme.error else color)
                     )
                 }
             }

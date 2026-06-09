@@ -40,6 +40,9 @@ fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val notas by viewModel.notas.collectAsStateWithLifecycle()
     val historialCalculos by viewModel.historialCalculos.collectAsStateWithLifecycle()
+    val indiceDia by viewModel.indiceDiaSeleccionado.collectAsStateWithLifecycle()
+    val etiquetaDia by viewModel.etiquetaDiaSeleccionado.collectAsStateWithLifecycle()
+    val diaCompletado by viewModel.diaCompletado.collectAsStateWithLifecycle()
 
     var pestana by remember { mutableStateOf(Pestana.METRICAS) }
 
@@ -86,6 +89,13 @@ fun MainScreen(viewModel: MainViewModel) {
             Pestana.METRICAS -> MetricasScreen(
                 metricas = state.metricas,
                 isLoading = state.isLoading,
+                diasSemana = viewModel.diasSemana,
+                indiceDia = indiceDia,
+                etiquetaDia = etiquetaDia,
+                diaCompletado = diaCompletado,
+                onSeleccionarDia = viewModel::seleccionarDia,
+                onToggleCompletado = viewModel::marcarDiaCompletado,
+                onLimpiarDia = viewModel::limpiarDia,
                 onAgregar = viewModel::agregarRegistro,
                 onAgregarAlimento = { mostrarAlimento = true },
                 onVerHistorial = { metricaHistorial = it },
@@ -98,7 +108,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
             Pestana.NOTAS -> NotasScreen(
                 notas = notas,
-                onGuardar = { viewModel.guardarNota(it) },
+                onGuardar = { id, texto -> viewModel.guardarNota(texto, id) },
                 onEliminar = viewModel::eliminarNota,
                 modifier = Modifier.padding(padding)
             )
