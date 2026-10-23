@@ -14,6 +14,9 @@ class CaloriasApp : Application() {
 
     val repository: MetricaRepository by lazy {
         MetricaRepository(
+            db = database,
+            pesoDao = database.pesoDao(),
+            respaldoDao = database.respaldoDao(),
             metricaDao = database.metricaDao(),
             notaDao = database.notaDao(),
             calculoDao = database.calculoDao(),

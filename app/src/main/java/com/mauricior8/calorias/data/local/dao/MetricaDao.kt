@@ -9,6 +9,7 @@ import androidx.room.Upsert
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.data.local.entity.RegistroSuma
 import com.mauricior8.calorias.data.local.model.MetricaTotal
+import com.mauricior8.calorias.data.local.model.TotalComida
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -40,6 +41,21 @@ interface MetricaDao {
         """
     )
     fun observarTotalesDelDia(inicioDia: Long, finDia: Long): Flow<List<MetricaTotal>>
+
+    // Totales del dia desglosados por comida (solo registros con comida asignada).
+    @Query(
+        """
+        SELECT metricaId AS metricaId, comida AS comida, SUM(valor) AS total
+        FROM registros
+        WHERE timestamp >= :inicioDia AND timestamp < :finDia AND comida IS NOT NULL
+        GROUP BY metricaId, comida
+        """
+    )
+    fun observarTotalesPorComida(inicioDia: Long, finDia: Long): Flow<List<TotalComida>>
+
+    // Registros en un rango (para las graficas de progreso semanal/mensual).
+    @Query("SELECT * FROM registros WHERE timestamp >= :inicio AND timestamp < :fin")
+    fun observarRegistrosEnRango(inicio: Long, fin: Long): Flow<List<RegistroSuma>>
 
     // e) Historial completo de una metrica, mas reciente primero.
     @Query(

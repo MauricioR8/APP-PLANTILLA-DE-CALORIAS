@@ -94,6 +94,10 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    // org.json real para pruebas locales (el de android.jar es un stub que falla).
+    testImplementation("org.json:json:20231013")
+    // SQLite real en la JVM para probar migraciones contra los esquemas exportados.
+    testImplementation("org.xerial:sqlite-jdbc:3.46.1.3")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

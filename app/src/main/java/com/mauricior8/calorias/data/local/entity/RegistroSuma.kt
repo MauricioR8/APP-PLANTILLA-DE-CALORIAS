@@ -13,7 +13,9 @@ import androidx.room.PrimaryKey
  * @param valor     Valor numerico ingresado.
  * @param timestamp Momento del registro en milisegundos (epoch).
  * @param tipo      "manual" o "automatico".
- * @param detalle   Texto opcional (ej: "Desayuno", "Vaso de agua").
+ * @param detalle   Texto opcional (ej: "Avena con leche", "Vaso de agua").
+ * @param comida    Comida del dia a la que pertenece ("Desayuno", "Comida", "Cena",
+ *                  "Colación") o null si no aplica (registros manuales y antiguos).
  */
 @Entity(
     tableName = "registros",
@@ -34,5 +36,6 @@ data class RegistroSuma(
     val valor: Float,
     val timestamp: Long = System.currentTimeMillis(),
     val tipo: String = "manual",
-    val detalle: String? = null
+    val detalle: String? = null,
+    val comida: String? = null
 )
