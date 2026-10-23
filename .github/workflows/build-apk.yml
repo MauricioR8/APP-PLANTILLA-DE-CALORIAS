@@ -2,7 +2,8 @@ name: Build APK
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "mejoras" ]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -28,27 +29,52 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      # La llave de firma vive en GitHub Secrets (nunca en el repositorio).
+      # Sin ella (por ejemplo en un pull request de un fork) el APK sale sin firmar.
+      - name: Preparar firma
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/calorias.jks"
+            echo "CALORIAS_KEYSTORE=$RUNNER_TEMP/calorias.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Sin KEYSTORE_BASE64: el APK saldra sin firmar."
+          fi
+
+      - name: Pruebas unitarias
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build release APK
+        env:
+          CALORIAS_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          CALORIAS_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          CALORIAS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Leer version
+        id: version
+        run: echo "nombre=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: calorias-apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
+      # Solo se publica una release desde main, con la version de build.gradle.kts.
+      # Asi un push no pisa el APK de una version anterior.
       - name: Publish APK to Release
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v6.0
-          name: "APK v6.0 - Limpiar por metrica, grafica por tarjeta y nota de alimento"
+          tag_name: v${{ steps.version.outputs.nombre }}
+          name: "APK v${{ steps.version.outputs.nombre }}"
+          generate_release_notes: true
           body: |
-            APK de depuracion (version 6.0).
-            Novedades: cada tarjeta de Mi dia tiene su boton de "Limpiar datos de hoy",
-            tipo de grafica por tarjeta (Anillo, Pastel o Barras) editable, y opcion de
-            guardar un alimento tambien como nota editable.
-            Descarga `app-debug.apk` desde los Assets e instalalo en tu Samsung A15
-            (habilita "Instalar apps de origen desconocido").
-          files: app/build/outputs/apk/debug/app-debug.apk
+            APK firmado con la llave fija de la app (se puede instalar sobre la version anterior
+            firmada con la misma llave sin perder datos).
+            Descarga el `.apk` desde los Assets e instalalo (habilita "Instalar apps de origen desconocido").
+          files: app/build/outputs/apk/release/*.apk
           fail_on_unmatched_files: true

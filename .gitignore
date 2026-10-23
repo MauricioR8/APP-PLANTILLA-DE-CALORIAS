@@ -10,3 +10,12 @@
 local.properties
 *.apk
 *.aab
+
+# Llaves de firma: nunca al repositorio
+*.jks
+*.keystore
+keystore.properties
+
+# Salidas de compilacion de cualquier modulo
+build/
+.kotlin/

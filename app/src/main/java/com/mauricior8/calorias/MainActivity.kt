@@ -19,6 +19,12 @@ class MainActivity : ComponentActivity() {
         MainViewModel.Factory(app.repository)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Si la app quedo abierta y cambio el dia, avanzar a "hoy".
+        viewModel.alReanudar()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

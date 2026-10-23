@@ -48,6 +48,11 @@ class MetricaRepository(
     suspend fun actualizarOrden(id: String, nuevoOrden: Int) =
         metricaDao.actualizarOrden(id, nuevoOrden)
 
+    suspend fun intercambiarOrden(idA: String, ordenA: Int, idB: String, ordenB: Int) =
+        metricaDao.intercambiarOrden(idA, ordenA, idB, ordenB)
+
+    suspend fun eliminarRegistro(id: Int) = metricaDao.eliminarRegistro(id)
+
     suspend fun siguienteOrden(): Int = metricaDao.maxOrden() + 1
 
     suspend fun agregarRegistro(registro: RegistroSuma): Long =

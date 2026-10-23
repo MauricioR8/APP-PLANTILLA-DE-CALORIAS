@@ -12,7 +12,7 @@ package com.mauricior8.calorias.util
  */
 object Calculadora {
 
-    fun evaluar(entrada: String): Float? {
+    fun evaluar(entrada: String): Double? {
         if (entrada.isBlank()) return null
         return try {
             val parser = Parser(entrada)
@@ -34,7 +34,7 @@ object Calculadora {
             return pos >= s.length
         }
 
-        fun parseExpresion(): Float {
+        fun parseExpresion(): Double {
             var valor = parseTermino()
             while (true) {
                 saltarEspacios()
@@ -46,7 +46,7 @@ object Calculadora {
             }
         }
 
-        private fun parseTermino(): Float {
+        private fun parseTermino(): Double {
             var valor = parseFactor()
             while (true) {
                 saltarEspacios()
@@ -55,13 +55,13 @@ object Calculadora {
                     '/' -> {
                         pos++
                         val divisor = parseFactor()
-                        if (divisor == 0f) throw ArithmeticException("div/0")
+                        if (divisor == 0.0) throw ArithmeticException("div/0")
                         valor /= divisor
                     }
                     '%' -> {
                         pos++
                         val divisor = parseFactor()
-                        if (divisor == 0f) throw ArithmeticException("mod/0")
+                        if (divisor == 0.0) throw ArithmeticException("mod/0")
                         valor %= divisor
                     }
                     else -> return valor
@@ -69,7 +69,7 @@ object Calculadora {
             }
         }
 
-        private fun parseFactor(): Float {
+        private fun parseFactor(): Double {
             saltarEspacios()
             return when (peek()) {
                 '(' -> {
@@ -86,12 +86,12 @@ object Calculadora {
             }
         }
 
-        private fun parseNumero(): Float {
+        private fun parseNumero(): Double {
             saltarEspacios()
             val inicio = pos
             while (pos < s.length && (s[pos].isDigit() || s[pos] == '.')) pos++
             if (pos == inicio) throw IllegalStateException("numero esperado")
-            return s.substring(inicio, pos).toFloat()
+            return s.substring(inicio, pos).toDouble()
         }
 
         private fun peek(): Char = if (pos < s.length) s[pos] else '\u0000'

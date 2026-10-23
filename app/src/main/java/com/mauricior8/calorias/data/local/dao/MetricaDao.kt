@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.data.local.entity.RegistroSuma
 import com.mauricior8.calorias.data.local.model.MetricaTotal
@@ -14,7 +15,9 @@ import kotlinx.coroutines.flow.Flow
 interface MetricaDao {
 
     // a) Insertar / actualizar metricas (categorias).
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // @Upsert actualiza la fila en su lugar. Con REPLACE SQLite borraba la fila vieja y el
+    // ON DELETE CASCADE eliminaba todos los registros de la metrica al editarla.
+    @Upsert
     suspend fun upsertMetrica(metrica: MetricaConfig)
 
     // b) Insertar un registro de suma (ingreso diario).
@@ -60,9 +63,23 @@ interface MetricaDao {
     @Query("DELETE FROM registros WHERE metricaId = :metricaId AND timestamp >= :inicio AND timestamp < :fin")
     suspend fun eliminarRegistrosDeMetricaEnRango(metricaId: String, inicio: Long, fin: Long)
 
+    // Eliminar un unico registro (para corregir una captura equivocada).
+    @Query("DELETE FROM registros WHERE id = :id")
+    suspend fun eliminarRegistro(id: Int)
+
     // Actualizar el orden de una metrica concreta.
     @Query("UPDATE metricas SET orden = :nuevoOrden WHERE id = :id")
     suspend fun actualizarOrden(id: String, nuevoOrden: Int)
+
+    // Intercambia el orden de dos metricas en una sola sentencia (atomico).
+    @Query(
+        """
+        UPDATE metricas
+        SET orden = CASE id WHEN :idA THEN :ordenB WHEN :idB THEN :ordenA END
+        WHERE id IN (:idA, :idB)
+        """
+    )
+    suspend fun intercambiarOrden(idA: String, ordenA: Int, idB: String, ordenB: Int)
 
     // Maximo orden actual (para colocar nuevas metricas al final).
     @Query("SELECT COALESCE(MAX(orden), -1) FROM metricas")

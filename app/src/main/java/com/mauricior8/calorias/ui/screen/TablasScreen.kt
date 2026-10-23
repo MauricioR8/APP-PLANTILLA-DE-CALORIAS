@@ -98,6 +98,7 @@ private fun ListaTablas(
     modifier: Modifier = Modifier
 ) {
     var mostrarDialogo by remember { mutableStateOf(false) }
+    var tablaPorEliminar by remember { mutableStateOf<TablaAlimentos?>(null) }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         FilledTonalButton(
@@ -145,7 +146,7 @@ private fun ListaTablas(
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f)
                             )
-                            IconButton(onClick = { onEliminar(tabla) }) {
+                            IconButton(onClick = { tablaPorEliminar = tabla }) {
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = "Eliminar tabla",
@@ -165,6 +166,15 @@ private fun ListaTablas(
             etiqueta = "Nombre de la tabla",
             onConfirmar = { onCrear(it); mostrarDialogo = false },
             onCancelar = { mostrarDialogo = false }
+        )
+    }
+
+    tablaPorEliminar?.let { tabla ->
+        ConfirmarDialog(
+            titulo = "Eliminar tabla",
+            mensaje = "Se borrará \"${tabla.nombre}\" con todas sus filas, columnas y celdas.",
+            onConfirmar = { onEliminar(tabla); tablaPorEliminar = null },
+            onCancelar = { tablaPorEliminar = null }
         )
     }
 }
@@ -191,6 +201,8 @@ private fun DetalleTabla(
     var dialogoFila by remember { mutableStateOf(false) }
     var celdaEditando by remember { mutableStateOf<Triple<FilaTabla, ColumnaTabla, String>?>(null) }
     var mostrarGrafica by remember { mutableStateOf(false) }
+    var columnaPorEliminar by remember { mutableStateOf<ColumnaTabla?>(null) }
+    var filaPorEliminar by remember { mutableStateOf<FilaTabla?>(null) }
 
     val anchoCelda = 110.dp
     val anchoFilaNombre = 130.dp
@@ -266,7 +278,7 @@ private fun DetalleTabla(
                                 .height(48.dp)
                                 .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
                                 .background(MaterialTheme.colorScheme.primaryContainer)
-                                .clickable { viewModel.eliminarColumna(col) },
+                                .clickable { columnaPorEliminar = col },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -289,7 +301,7 @@ private fun DetalleTabla(
                                     .height(48.dp)
                                     .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .clickable { viewModel.eliminarFila(fila) },
+                                    .clickable { filaPorEliminar = fila },
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 Text(
@@ -347,6 +359,23 @@ private fun DetalleTabla(
                 celdaEditando = null
             },
             onCancelar = { celdaEditando = null }
+        )
+    }
+
+    columnaPorEliminar?.let { col ->
+        ConfirmarDialog(
+            titulo = "Eliminar columna",
+            mensaje = "Se borrará la columna \"${col.nombre}\" y sus valores.",
+            onConfirmar = { viewModel.eliminarColumna(col); columnaPorEliminar = null },
+            onCancelar = { columnaPorEliminar = null }
+        )
+    }
+    filaPorEliminar?.let { fila ->
+        ConfirmarDialog(
+            titulo = "Eliminar alimento",
+            mensaje = "Se borrará \"${fila.nombre}\" y sus valores.",
+            onConfirmar = { viewModel.eliminarFila(fila); filaPorEliminar = null },
+            onCancelar = { filaPorEliminar = null }
         )
     }
 

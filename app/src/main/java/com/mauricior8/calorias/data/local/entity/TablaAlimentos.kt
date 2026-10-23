@@ -18,7 +18,7 @@ data class TablaAlimentos(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val nombre: String,
-    val tipoGrafica: String = "barras",
+    val tipoGrafica: String = "Barras",
     val timestamp: Long = System.currentTimeMillis()
 )
 

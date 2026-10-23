@@ -21,9 +21,12 @@ import com.mauricior8.calorias.ui.state.MetricaConItem
 import com.mauricior8.calorias.ui.state.UiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -48,14 +51,28 @@ class MainViewModel(
     private val fmtFechaKey = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val fmtEtiqueta = SimpleDateFormat("dd/MM", Locale.getDefault())
 
+    // ---------------- Mensajes para la UI (Snackbar) ----------------
+
+    private val _mensajes = MutableSharedFlow<String>(extraBufferCapacity = 8)
+
+    /** Avisos puntuales para mostrar al usuario. */
+    val mensajes: SharedFlow<String> = _mensajes.asSharedFlow()
+
+    private fun avisar(texto: String) {
+        _mensajes.tryEmit(texto)
+    }
+
     // ---------------- Seleccion de dia ----------------
 
     /** Inicio (00:00) del dia seleccionado, en milisegundos epoch. */
     private val _inicioDiaSeleccionado = MutableStateFlow(inicioDeHoy())
 
+    /** True mientras el usuario no haya elegido manualmente otro dia distinto de hoy. */
+    private var siguiendoHoy = true
+
     /** Etiquetas de Lunes a Domingo. */
     val diasSemana: List<String> = listOf(
-        "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"
+        "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
     )
 
     /** Indice (0=Lunes ... 6=Domingo) del dia seleccionado. */
@@ -106,13 +123,25 @@ class MainViewModel(
     fun historial(metricaId: String) = repository.historial(metricaId)
 
     fun seleccionarDia(indice: Int) {
-        _inicioDiaSeleccionado.value = inicioDeDiaSemana(indice)
+        val inicio = inicioDeDiaSemana(indice)
+        siguiendoHoy = inicio == inicioDeHoy()
+        _inicioDiaSeleccionado.value = inicio
     }
 
     /** Fija manualmente la fecha (dia/mes/anio) a partir de millis. */
     fun setFechaManual(millis: Long) {
         val c = Calendar.getInstance().apply { timeInMillis = millis }
-        _inicioDiaSeleccionado.value = aMedianoche(c)
+        val inicio = aMedianoche(c)
+        siguiendoHoy = inicio == inicioDeHoy()
+        _inicioDiaSeleccionado.value = inicio
+    }
+
+    /**
+     * Se llama al volver a la app. Si el usuario seguia viendo "hoy" y ya cambio el dia
+     * (paso la medianoche con la app abierta), avanza al dia actual.
+     */
+    fun alReanudar() {
+        if (siguiendoHoy) _inicioDiaSeleccionado.value = inicioDeHoy()
     }
 
     fun limpiarDia() {
@@ -224,10 +253,17 @@ class MainViewModel(
         val actual = items[index].config
         val vecino = items[destino].config
         viewModelScope.launch {
-            // Intercambiar valores de orden.
-            repository.actualizarOrden(actual.id, vecino.orden)
-            repository.actualizarOrden(vecino.id, actual.orden)
+            // Si dos metricas comparten orden el intercambio no cambiaria nada.
+            // En ese caso se separan usando la posicion en la lista.
+            val ordenActual = if (actual.orden != vecino.orden) actual.orden else index
+            val ordenVecino = if (actual.orden != vecino.orden) vecino.orden else destino
+            repository.intercambiarOrden(actual.id, ordenActual, vecino.id, ordenVecino)
         }
+    }
+
+    /** Borra un unico registro del historial de una metrica. */
+    fun eliminarRegistro(registro: RegistroSuma) {
+        viewModelScope.launch { repository.eliminarRegistro(registro.id) }
     }
 
     fun agregarRegistro(
@@ -371,13 +407,21 @@ class MainViewModel(
     fun agregarColumna(tablaId: Int, nombre: String) {
         val limpio = nombre.trim()
         if (limpio.isEmpty()) return
-        viewModelScope.launch { repository.agregarColumna(tablaId, limpio) }
+        viewModelScope.launch {
+            if (!repository.agregarColumna(tablaId, limpio)) {
+                avisar("Máximo ${MetricaRepository.MAX_COLUMNAS} columnas por tabla")
+            }
+        }
     }
 
     fun agregarFila(tablaId: Int, nombre: String) {
         val limpio = nombre.trim()
         if (limpio.isEmpty()) return
-        viewModelScope.launch { repository.agregarFila(tablaId, limpio) }
+        viewModelScope.launch {
+            if (!repository.agregarFila(tablaId, limpio)) {
+                avisar("Máximo ${MetricaRepository.MAX_FILAS} filas por tabla")
+            }
+        }
     }
 
     fun eliminarColumna(columna: ColumnaTabla) {
@@ -398,19 +442,22 @@ class MainViewModel(
         viewModelScope.launch {
             if (repository.hayMetricas()) return@launch
             val defaults = listOf(
-                MetricaConfig("calorias", "Calorias", "kcal", 2000f, "#EF5350", 0),
-                MetricaConfig("proteinas", "Proteinas", "gr", 120f, "#66BB6A", 1),
+                MetricaConfig("calorias", "Calorías", "kcal", 2000f, "#EF5350", 0),
+                MetricaConfig("proteinas", "Proteínas", "gr", 120f, "#66BB6A", 1),
                 MetricaConfig("carbohidratos", "Carbohidratos", "gr", 250f, "#42A5F5", 2),
-                MetricaConfig("azucar", "Azucar", "gr", 30f, "#EC407A", 3),
-                MetricaConfig("sodio", "Sodio", "mg", 2000f, "#FFCA28", 4),
-                MetricaConfig("agua", "Agua", "L", 2f, "#26C6DA", 5)
+                MetricaConfig("grasas", "Grasas", "gr", 70f, "#FF7043", 3),
+                MetricaConfig("fibra", "Fibra", "gr", 30f, "#8D6E63", 4),
+                MetricaConfig("azucar", "Azúcar", "gr", 30f, "#EC407A", 5),
+                MetricaConfig("sodio", "Sodio", "mg", 2000f, "#FFCA28", 6),
+                MetricaConfig("agua", "Agua", "L", 2f, "#26C6DA", 7)
             )
             defaults.forEach { repository.guardarMetrica(it) }
         }
     }
 
-    private fun formato(valor: Float): String =
-        if (valor % 1f == 0f) valor.toInt().toString() else "%.2f".format(valor)
+    private fun formato(valor: Double): String =
+        if (valor % 1.0 == 0.0 && kotlin.math.abs(valor) < 1e15) valor.toLong().toString()
+        else "%.2f".format(valor)
 
     private fun generarId(nombre: String): String {
         val slug = nombre.lowercase(Locale.getDefault())

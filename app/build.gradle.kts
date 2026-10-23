@@ -13,8 +13,8 @@ android {
         applicationId = "com.mauricior8.calorias"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "6.0"
+        versionCode = 7
+        versionName = "7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -22,13 +22,27 @@ android {
         }
     }
 
+    // Firma fija: la llave se pasa por variables de entorno (GitHub Secrets en CI).
+    // Sin ellas se usa la firma de depuracion local, util solo para pruebas.
+    signingConfigs {
+        val ruta = System.getenv("CALORIAS_KEYSTORE")
+        if (!ruta.isNullOrBlank() && file(ruta).exists()) {
+            create("app") {
+                storeFile = file(ruta)
+                storePassword = System.getenv("CALORIAS_STORE_PASSWORD")
+                keyAlias = System.getenv("CALORIAS_KEY_ALIAS")
+                keyPassword = System.getenv("CALORIAS_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfigs.findByName("app")?.let { signingConfig = it }
+        }
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            signingConfigs.findByName("app")?.let { signingConfig = it }
         }
     }
     compileOptions {
@@ -46,6 +60,11 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+// Room exporta el esquema de cada version para poder verificar migraciones.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {

@@ -35,7 +35,7 @@ import com.mauricior8.calorias.data.local.entity.TablaAlimentos
         AlimentoGuardado::class
     ],
     version = 6,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 
@@ -57,7 +57,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "calorias.db"
                 )
-                    .fallbackToDestructiveMigration()
+                    // Solo las versiones antiguas (sin esquema exportado) se reinician.
+                    // De la 6 en adelante cada cambio debe traer su migracion para no
+                    // borrar los datos del usuario.
+                    .fallbackToDestructiveMigrationFrom(1, 2, 3, 4, 5)
                     .build()
                 INSTANCE = instance
                 instance
