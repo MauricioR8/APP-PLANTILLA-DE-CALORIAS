@@ -61,7 +61,7 @@ fun MetricaEditorDialog(
 
     AlertDialog(
         onDismissRequest = onCancelar,
-        title = { Text(if (metricaExistente == null) "Nueva metrica" else "Editar metrica") },
+        title = { Text(if (metricaExistente == null) "Nueva métrica" else "Editar métrica") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(
@@ -86,7 +86,7 @@ fun MetricaEditorDialog(
                 OutlinedTextField(
                     value = limite,
                     onValueChange = { limite = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Limite diario (opcional)") },
+                    label = { Text("Límite diario (opcional)") },
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = KeyboardType.Decimal
@@ -124,7 +124,7 @@ fun MetricaEditorDialog(
                     }
                 }
 
-                Text("Tipo de grafica en la tarjeta")
+                Text("Tipo de gráfica en la tarjeta")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     tiposGrafica.forEach { t ->
                         FilterChip(

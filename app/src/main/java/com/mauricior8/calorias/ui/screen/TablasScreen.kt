@@ -253,7 +253,7 @@ private fun DetalleTabla(
         ) {
             Icon(Icons.Default.Edit, contentDescription = null)
             Spacer(Modifier.width(6.dp))
-            Text("Ver / editar grafica")
+            Text("Ver / editar gráfica")
         }
 
         Spacer(Modifier.height(10.dp))
@@ -261,7 +261,7 @@ private fun DetalleTabla(
         if (columnas.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "Agrega columnas (categorias) y filas (alimentos).",
+                    "Agrega columnas (categorías) y filas (alimentos).",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -336,7 +336,7 @@ private fun DetalleTabla(
     if (dialogoColumna) {
         DialogoTexto(
             titulo = "Nueva columna",
-            etiqueta = "Nombre de la categoria",
+            etiqueta = "Nombre de la categoría",
             onConfirmar = { viewModel.agregarColumna(tabla.id, it); dialogoColumna = false },
             onCancelar = { dialogoColumna = false }
         )
@@ -414,14 +414,14 @@ private fun GraficaDialog(
 
     AlertDialog(
         onDismissRequest = onCerrar,
-        title = { Text("Grafica: ${tabla.nombre}") },
+        title = { Text("Gráfica: ${tabla.nombre}") },
         text = {
             Column(
                 modifier = Modifier
                     .heightIn(max = 520.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text("Tipo de grafica", fontWeight = FontWeight.SemiBold)
+                Text("Tipo de gráfica", fontWeight = FontWeight.SemiBold)
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)

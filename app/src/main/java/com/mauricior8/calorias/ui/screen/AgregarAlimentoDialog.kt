@@ -241,7 +241,7 @@ fun AgregarAlimentoDialog(
                             checked = guardarComoNota,
                             onCheckedChange = { guardarComoNota = it }
                         )
-                        Text("Guardar tambien como nota (editable en Notas)")
+                        Text("Guardar también como nota (editable en Notas)")
                     }
                 }
 
@@ -259,7 +259,7 @@ fun AgregarAlimentoDialog(
                         ) {
                             Text(a.nombre, modifier = Modifier.weight(1f))
                             IconButton(onClick = { onAplicar(a, comida) }) {
-                                Icon(Icons.Default.Add, contentDescription = "Agregar al dia")
+                                Icon(Icons.Default.Add, contentDescription = "Agregar al día")
                             }
                             IconButton(onClick = { cargarParaEditar(a) }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Editar")

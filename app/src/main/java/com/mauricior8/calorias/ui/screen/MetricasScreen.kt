@@ -146,7 +146,7 @@ fun MetricasScreen(
                 if (metricas.isEmpty()) {
                     item(key = "vacio") {
                         Text(
-                            "No hay metricas. Pulsa + para crear una.",
+                            "No hay métricas. Pulsa + para crear una.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 24.dp)
                         )
@@ -208,7 +208,7 @@ private fun SelectorDia(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(etiquetaDia, modifier = Modifier.weight(1f))
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Elegir dia")
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Elegir día")
                     }
                     DropdownMenu(
                         expanded = menuAbierto,
@@ -232,7 +232,7 @@ private fun SelectorDia(
                 IconButton(onClick = onLimpiarDia) {
                     Icon(
                         Icons.Default.Refresh,
-                        contentDescription = "Limpiar dia",
+                        contentDescription = "Limpiar día",
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -247,7 +247,7 @@ private fun SelectorDia(
                     colors = CheckboxDefaults.colors(checkedColor = VerdeCompletado)
                 )
                 Text(
-                    "Dia completado (calorias y macros)",
+                    "Día completado (calorías y macros)",
                     color = if (diaCompletado) VerdeCompletado else MaterialTheme.colorScheme.onSurface,
                     fontWeight = if (diaCompletado) FontWeight.Bold else FontWeight.Normal
                 )
@@ -292,7 +292,7 @@ private fun MetasPanel(metricas: List<MetricaConItem>) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                "Metas del dia",
+                "Metas del día",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -445,7 +445,7 @@ private fun MetricaCard(
                 // Menu de acciones.
                 Box {
                     IconButton(onClick = { menuAbierto = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Mas opciones")
+                        Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
                     }
                     DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
                         DropdownMenuItem(

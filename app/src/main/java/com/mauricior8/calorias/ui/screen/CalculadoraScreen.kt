@@ -150,7 +150,7 @@ fun CalculadoraScreen(
         if (historial.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "Sin calculos aun.",
+                    "Sin cálculos aún.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

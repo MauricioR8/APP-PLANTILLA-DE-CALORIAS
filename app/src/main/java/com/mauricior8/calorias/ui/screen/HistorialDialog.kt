@@ -51,7 +51,7 @@ fun HistorialDialog(
         title = { Text("Historial: ${metrica.nombre}") },
         text = {
             if (registros.isEmpty()) {
-                Text("Aun no hay registros para esta metrica.")
+                Text("Aún no hay registros para esta métrica.")
             } else {
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 360.dp),

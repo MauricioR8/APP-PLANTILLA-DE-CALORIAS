@@ -92,7 +92,7 @@ fun NotasScreen(
         if (notas.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "Aun no tienes notas guardadas.",
+                    "Aún no tienes notas guardadas.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
