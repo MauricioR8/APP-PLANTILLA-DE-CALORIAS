@@ -15,4 +15,7 @@ interface EstadoDiaDao {
 
     @Query("SELECT * FROM estados_dia WHERE fecha = :fecha LIMIT 1")
     fun observar(fecha: String): Flow<EstadoDia?>
+
+    @Query("SELECT fecha FROM estados_dia WHERE completado = 1")
+    fun observarCompletados(): Flow<List<String>>
 }

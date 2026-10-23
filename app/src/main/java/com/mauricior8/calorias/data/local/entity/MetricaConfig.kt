@@ -14,6 +14,7 @@ import androidx.room.PrimaryKey
  * @param colorHex  Color asociado para la UI en formato "#RRGGBB".
  * @param orden     Posicion en la lista (para reordenar arriba/abajo).
  * @param tipoGrafica Estilo visual en la tarjeta: "Anillo", "Pastel" o "Barras".
+ * @param limiteDescanso Limite opcional para dias sin entrenamiento; null = igual que [limiteMaximo].
  */
 @Entity(tableName = "metricas")
 data class MetricaConfig(
@@ -24,5 +25,6 @@ data class MetricaConfig(
     val limiteMaximo: Float? = null,
     val colorHex: String = "#FF6D00",
     val orden: Int = 0,
-    val tipoGrafica: String = "Anillo"
+    val tipoGrafica: String = "Anillo",
+    val limiteDescanso: Float? = null
 )

@@ -79,6 +79,20 @@ interface MetricaDao {
     @Query("DELETE FROM registros WHERE metricaId = :metricaId AND timestamp >= :inicio AND timestamp < :fin")
     suspend fun eliminarRegistrosDeMetricaEnRango(metricaId: String, inicio: Long, fin: Long)
 
+    // Registros de un rango (lectura unica, para copiar un dia a otro).
+    @Query("SELECT * FROM registros WHERE timestamp >= :inicio AND timestamp < :fin ORDER BY timestamp ASC")
+    suspend fun registrosEnRangoUnaVez(inicio: Long, fin: Long): List<RegistroSuma>
+
+    // Archivado semanal: registros anteriores a un instante.
+    @Query("SELECT * FROM registros WHERE timestamp < :limite")
+    suspend fun registrosAntesDe(limite: Long): List<RegistroSuma>
+
+    @Query("DELETE FROM registros WHERE timestamp < :limite")
+    suspend fun eliminarRegistrosAntesDe(limite: Long)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertarRegistros(registros: List<RegistroSuma>)
+
     // Eliminar un unico registro (para corregir una captura equivocada).
     @Query("DELETE FROM registros WHERE id = :id")
     suspend fun eliminarRegistro(id: Int)

@@ -108,6 +108,8 @@ class MigracionesTest {
 
     private fun migrar() = Migraciones.SENTENCIAS_6_7.forEach { exec(it) }
 
+    private fun migrar7a8() = Migraciones.SENTENCIAS_7_8.forEach { exec(it) }
+
     private fun nombresMetricas() =
         consulta(conn, "SELECT id || ':' || orden FROM metricas ORDER BY orden") { it.getString(1) }
 
@@ -123,6 +125,58 @@ class MigracionesTest {
         } finally {
             limpia.close()
         }
+    }
+
+    // ---------- 7 -> 8 ----------
+
+    @Test fun esquemaMigradoDe7a8EsIgualAlDeRoomV8() {
+        crear(conn, 7)
+        exec("INSERT INTO metricas VALUES ('calorias','Calorías','kcal',2000.0,'#EF5350',0,'Anillo')")
+        migrar7a8()
+        val limpia = DriverManager.getConnection("jdbc:sqlite::memory:")
+        try {
+            crear(limpia, 8)
+            assertEquals(descripcion(limpia), descripcion(conn))
+        } finally {
+            limpia.close()
+        }
+    }
+
+    @Test fun cadenaCompletaDe6a8EsIgualAlDeRoomV8() {
+        cargarBaseV6()
+        migrar()
+        migrar7a8()
+        val limpia = DriverManager.getConnection("jdbc:sqlite::memory:")
+        try {
+            crear(limpia, 8)
+            assertEquals(descripcion(limpia), descripcion(conn))
+        } finally {
+            limpia.close()
+        }
+    }
+
+    @Test fun migracion7a8ConservaDatosYDaValoresPorDefecto() {
+        cargarBaseV6()
+        migrar()
+        exec("INSERT INTO alimentos_guardados (nombre, valores, timestamp) VALUES ('Pollo','calorias=165.0',5)")
+        migrar7a8()
+        assertEquals(2, consulta(conn, "SELECT COUNT(*) FROM registros") { it.getInt(1) }.single())
+        assertEquals(0, consulta(conn, "SELECT favorito FROM alimentos_guardados") { it.getInt(1) }.single())
+        assertEquals(listOf<Double?>(null, null, null, null, null, null, null, null),
+            consulta(conn, "SELECT limiteDescanso FROM metricas") { rs -> rs.getDouble(1).takeIf { !rs.wasNull() } })
+    }
+
+    @Test fun elGymSeBorraEnCascadaConSuRutina() {
+        crear(conn, 8)
+        exec("INSERT INTO rutinas (nombre, colorHex, dias, diaria, orden) VALUES ('A','#DC2626','1,4',0,0)")
+        exec("INSERT INTO ejercicios_rutina (rutinaId, nombre, grupo, series, reps, esTiempo, descansoSeg, vecesPorDia, pesoKg, orden) " +
+            "VALUES (1,'Press','Pecho',3,10,0,90,1,17.5,0)")
+        exec("INSERT INTO series_hechas VALUES (1,'2026-10-22',0)")
+        exec("INSERT INTO pesos_ejercicio (ejercicioId, timestamp, kg) VALUES (1, 1, 17.5)")
+        exec("DELETE FROM rutinas WHERE id = 1")
+        assertEquals(0, consulta(conn, "SELECT COUNT(*) FROM ejercicios_rutina") { it.getInt(1) }.single())
+        assertEquals(0, consulta(conn, "SELECT COUNT(*) FROM series_hechas") { it.getInt(1) }.single())
+        assertEquals(0, consulta(conn, "SELECT COUNT(*) FROM pesos_ejercicio") { it.getInt(1) }.single())
     }
 
     @Test fun conservaTodosLosDatosExistentes() {

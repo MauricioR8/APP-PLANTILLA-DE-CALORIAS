@@ -3,17 +3,27 @@ package com.mauricior8.calorias.data.local.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import com.mauricior8.calorias.data.local.entity.Ajuste
 import com.mauricior8.calorias.data.local.entity.AlimentoGuardado
 import com.mauricior8.calorias.data.local.entity.CalculoHistorial
 import com.mauricior8.calorias.data.local.entity.CeldaTabla
 import com.mauricior8.calorias.data.local.entity.ColumnaTabla
+import com.mauricior8.calorias.data.local.entity.EjercicioRutina
 import com.mauricior8.calorias.data.local.entity.EstadoDia
 import com.mauricior8.calorias.data.local.entity.FilaTabla
+import com.mauricior8.calorias.data.local.entity.Medida
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.data.local.entity.Nota
+import com.mauricior8.calorias.data.local.entity.PesoEjercicio
 import com.mauricior8.calorias.data.local.entity.PesoRegistro
 import com.mauricior8.calorias.data.local.entity.RegistroSuma
+import com.mauricior8.calorias.data.local.entity.Rutina
+import com.mauricior8.calorias.data.local.entity.SerieHecha
+import com.mauricior8.calorias.data.local.entity.SesionGym
+import com.mauricior8.calorias.data.local.entity.Suplemento
+import com.mauricior8.calorias.data.local.entity.SuplementoTomado
 import com.mauricior8.calorias.data.local.entity.TablaAlimentos
+import com.mauricior8.calorias.data.local.entity.TotalDiario
 
 /**
  * Lectura completa de todas las tablas (exportar) y reemplazo total (importar).
@@ -35,8 +45,24 @@ interface RespaldoDao {
     @Query("SELECT * FROM estados_dia") suspend fun estadosDia(): List<EstadoDia>
     @Query("SELECT * FROM alimentos_guardados ORDER BY id ASC") suspend fun alimentos(): List<AlimentoGuardado>
     @Query("SELECT * FROM peso ORDER BY id ASC") suspend fun pesos(): List<PesoRegistro>
+    @Query("SELECT * FROM ajustes") suspend fun ajustes(): List<Ajuste>
+    @Query("SELECT * FROM rutinas ORDER BY id ASC") suspend fun rutinas(): List<Rutina>
+    @Query("SELECT * FROM ejercicios_rutina ORDER BY id ASC") suspend fun ejercicios(): List<EjercicioRutina>
+    @Query("SELECT * FROM series_hechas") suspend fun seriesHechas(): List<SerieHecha>
+    @Query("SELECT * FROM pesos_ejercicio ORDER BY id ASC") suspend fun pesosEjercicio(): List<PesoEjercicio>
+    @Query("SELECT * FROM sesiones_gym") suspend fun sesiones(): List<SesionGym>
+    @Query("SELECT * FROM suplementos ORDER BY id ASC") suspend fun suplementos(): List<Suplemento>
+    @Query("SELECT * FROM suplementos_tomados") suspend fun suplementosTomados(): List<SuplementoTomado>
+    @Query("SELECT * FROM medidas ORDER BY id ASC") suspend fun medidas(): List<Medida>
+    @Query("SELECT * FROM totales_diarios") suspend fun totalesDiarios(): List<TotalDiario>
 
     // ---- Borrado (las tablas hijas caen por ON DELETE CASCADE) ----
+    @Query("DELETE FROM ajustes") suspend fun borrarAjustes()
+    @Query("DELETE FROM rutinas") suspend fun borrarRutinas()
+    @Query("DELETE FROM sesiones_gym") suspend fun borrarSesiones()
+    @Query("DELETE FROM suplementos") suspend fun borrarSuplementos()
+    @Query("DELETE FROM medidas") suspend fun borrarMedidas()
+    @Query("DELETE FROM totales_diarios") suspend fun borrarTotalesDiarios()
     @Query("DELETE FROM metricas") suspend fun borrarMetricas()
     @Query("DELETE FROM notas") suspend fun borrarNotas()
     @Query("DELETE FROM calculos") suspend fun borrarCalculos()
@@ -57,4 +83,14 @@ interface RespaldoDao {
     @Insert suspend fun insertarEstadosDia(lista: List<EstadoDia>)
     @Insert suspend fun insertarAlimentos(lista: List<AlimentoGuardado>)
     @Insert suspend fun insertarPesos(lista: List<PesoRegistro>)
+    @Insert suspend fun insertarAjustes(lista: List<Ajuste>)
+    @Insert suspend fun insertarRutinas(lista: List<Rutina>)
+    @Insert suspend fun insertarEjercicios(lista: List<EjercicioRutina>)
+    @Insert suspend fun insertarSeriesHechas(lista: List<SerieHecha>)
+    @Insert suspend fun insertarPesosEjercicio(lista: List<PesoEjercicio>)
+    @Insert suspend fun insertarSesiones(lista: List<SesionGym>)
+    @Insert suspend fun insertarSuplementos(lista: List<Suplemento>)
+    @Insert suspend fun insertarSuplementosTomados(lista: List<SuplementoTomado>)
+    @Insert suspend fun insertarMedidas(lista: List<Medida>)
+    @Insert suspend fun insertarTotalesDiarios(lista: List<TotalDiario>)
 }

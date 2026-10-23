@@ -10,7 +10,8 @@ import com.mauricior8.calorias.data.local.entity.MetricaConfig
  */
 data class UiState(
     val isLoading: Boolean = true,
-    val metricas: List<MetricaConItem> = emptyList()
+    val metricas: List<MetricaConItem> = emptyList(),
+    val diaDescanso: Boolean = false
 )
 
 /**
@@ -31,11 +32,16 @@ data class Progreso(
  */
 data class MetricaConItem(
     val config: MetricaConfig,
-    val totalHoy: Float
+    val totalHoy: Float,
+    val diaDescanso: Boolean = false
 ) {
+    /** Limite que aplica hoy: el de descanso (si existe) en dias sin entrenamiento. */
+    val limite: Float?
+        get() = if (diaDescanso) config.limiteDescanso ?: config.limiteMaximo else config.limiteMaximo
+
     val progreso: Float
         get() {
-            val limite = config.limiteMaximo ?: return 0f
+            val limite = limite ?: return 0f
             if (limite <= 0f) return 0f
             return (totalHoy / limite).coerceIn(0f, 1f)
         }

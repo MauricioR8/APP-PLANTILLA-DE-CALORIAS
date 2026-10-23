@@ -18,8 +18,15 @@ interface AlimentoDao {
     @Update
     suspend fun actualizar(alimento: AlimentoGuardado)
 
-    @Query("SELECT * FROM alimentos_guardados ORDER BY timestamp DESC")
+    // Favoritos primero y luego los mas recientes.
+    @Query("SELECT * FROM alimentos_guardados ORDER BY favorito DESC, timestamp DESC")
     fun observar(): Flow<List<AlimentoGuardado>>
+
+    @Query("UPDATE alimentos_guardados SET timestamp = :timestamp WHERE id = :id")
+    suspend fun tocar(id: Int, timestamp: Long)
+
+    @Query("UPDATE alimentos_guardados SET favorito = :favorito WHERE id = :id")
+    suspend fun marcarFavorito(id: Int, favorito: Boolean)
 
     @Delete
     suspend fun eliminar(alimento: AlimentoGuardado)

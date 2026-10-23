@@ -29,6 +29,17 @@ data class Perfil(
     val meta: MetaPeso
 )
 
+/** Perfil sin el peso (que sale del ultimo registro de peso corporal), para guardarlo en ajustes. */
+data class PerfilBase(
+    val sexo: Sexo,
+    val edad: Int,
+    val estaturaCm: Double,
+    val actividad: Actividad,
+    val meta: MetaPeso
+) {
+    fun conPeso(pesoKg: Double) = Perfil(sexo, edad, pesoKg, estaturaCm, actividad, meta)
+}
+
 data class ObjetivosDiarios(
     val tmb: Int,
     val gastoTotal: Int,

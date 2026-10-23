@@ -1,5 +1,6 @@
 package com.mauricior8.calorias.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -17,5 +18,7 @@ data class AlimentoGuardado(
     val id: Int = 0,
     val nombre: String,
     val valores: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "0")
+    val favorito: Boolean = false
 )
