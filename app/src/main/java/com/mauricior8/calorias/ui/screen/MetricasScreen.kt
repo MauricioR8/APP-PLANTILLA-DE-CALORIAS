@@ -65,8 +65,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
+import com.mauricior8.calorias.data.local.model.TotalComida
 import com.mauricior8.calorias.ui.state.MetricaConItem
 import com.mauricior8.calorias.ui.theme.VerdeCompletado
+import com.mauricior8.calorias.util.Clave
+import com.mauricior8.calorias.util.Comidas
+import com.mauricior8.calorias.util.claveMetrica
 import com.mauricior8.calorias.util.colorDesdeHex
 import com.mauricior8.calorias.util.formatoValor
 
@@ -95,6 +99,7 @@ fun MetricasScreen(
     onLimpiarMetrica: (String) -> Unit,
     onMoverArriba: (String) -> Unit,
     onMoverAbajo: (String) -> Unit,
+    totalesPorComida: List<TotalComida> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -122,6 +127,11 @@ fun MetricasScreen(
                 }
                 if (metricas.isNotEmpty()) {
                     item(key = "metas") { MetasPanel(metricas = metricas) }
+                }
+                if (totalesPorComida.isNotEmpty()) {
+                    item(key = "por_comida") {
+                        ResumenComidas(metricas = metricas, totales = totalesPorComida)
+                    }
                 }
                 item(key = "btn_alimento") {
                     Button(
@@ -336,6 +346,38 @@ private fun MetasPanel(metricas: List<MetricaConItem>) {
                             .fillMaxSize()
                             .background(if (excedido) MaterialTheme.colorScheme.error else color)
                     )
+                }
+            }
+        }
+    }
+}
+
+/** Calorias y proteina del dia desglosadas por comida (solo alimentos con comida asignada). */
+@Composable
+private fun ResumenComidas(metricas: List<MetricaConItem>, totales: List<TotalComida>) {
+    val calorias = metricas.firstOrNull { claveMetrica(it.config.nombre) == Clave.CALORIAS }?.config
+    val proteinas = metricas.firstOrNull { claveMetrica(it.config.nombre) == Clave.PROTEINAS }?.config
+    val filas = Comidas.LISTA.mapNotNull { comida ->
+        val deLaComida = totales.filter { it.comida == comida }
+        if (deLaComida.isEmpty()) return@mapNotNull null
+        fun total(m: MetricaConfig?) = m?.let { cfg ->
+            deLaComida.firstOrNull { it.metricaId == cfg.id }?.let { "${formatoValor(it.total)} ${cfg.unidad}" }
+        }
+        comida to listOfNotNull(total(calorias), total(proteinas)?.let { "Prot. $it" }).joinToString(" · ")
+    }
+    if (filas.isEmpty()) return
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Por comida", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            filas.forEach { (comida, resumen) ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(comida, fontWeight = FontWeight.SemiBold)
+                    Text(resumen, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

@@ -82,10 +82,11 @@ fun HistorialDialog(
                                     )
                                 }
                             }
-                            val detalle = reg.detalle
-                            if (!detalle.isNullOrBlank()) {
+                            val extra = listOfNotNull(reg.comida, reg.detalle?.takeIf { it.isNotBlank() })
+                                .joinToString(" · ")
+                            if (extra.isNotEmpty()) {
                                 Text(
-                                    detalle,
+                                    extra,
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }

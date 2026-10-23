@@ -14,6 +14,18 @@ data class UiState(
 )
 
 /**
+ * Totales diarios de los ultimos [dias] dias (el ultimo es hoy).
+ *
+ * @param etiquetas Fecha corta (dd/MM) de cada dia, del mas antiguo al mas reciente.
+ * @param totales   metricaId -> total de cada dia (misma longitud que [etiquetas]).
+ */
+data class Progreso(
+    val dias: Int = 7,
+    val etiquetas: List<String> = emptyList(),
+    val totales: Map<String, List<Float>> = emptyMap()
+)
+
+/**
  * Une la configuracion de una metrica con su total acumulado de hoy y el
  * porcentaje de progreso respecto al limite (si existe).
  */

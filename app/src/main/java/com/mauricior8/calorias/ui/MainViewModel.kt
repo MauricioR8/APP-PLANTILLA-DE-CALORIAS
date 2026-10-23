@@ -11,15 +11,28 @@ import com.mauricior8.calorias.data.local.entity.EstadoDia
 import com.mauricior8.calorias.data.local.entity.FilaTabla
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.data.local.entity.Nota
+import com.mauricior8.calorias.data.local.entity.PesoRegistro
 import com.mauricior8.calorias.data.local.entity.RegistroSuma
 import com.mauricior8.calorias.data.local.entity.TablaAlimentos
+import com.mauricior8.calorias.data.backup.Respaldo
+import com.mauricior8.calorias.data.local.model.TotalComida
+import com.mauricior8.calorias.data.remote.AlimentoRemoto
+import com.mauricior8.calorias.data.remote.OpenFoodFacts
 import com.mauricior8.calorias.data.repository.MetricaRepository
 import com.mauricior8.calorias.util.Calculadora
+import com.mauricior8.calorias.util.Clave
+import com.mauricior8.calorias.util.ObjetivosDiarios
+import com.mauricior8.calorias.util.claveMetrica
 import com.mauricior8.calorias.util.codificarValores
 import com.mauricior8.calorias.util.decodificarValores
 import com.mauricior8.calorias.ui.state.MetricaConItem
+import com.mauricior8.calorias.ui.state.Progreso
 import com.mauricior8.calorias.ui.state.UiState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,7 +71,7 @@ class MainViewModel(
     /** Avisos puntuales para mostrar al usuario. */
     val mensajes: SharedFlow<String> = _mensajes.asSharedFlow()
 
-    private fun avisar(texto: String) {
+    fun avisar(texto: String) {
         _mensajes.tryEmit(texto)
     }
 
@@ -141,8 +154,126 @@ class MainViewModel(
      * (paso la medianoche con la app abierta), avanza al dia actual.
      */
     fun alReanudar() {
+        _hoy.value = inicioDeHoy()
         if (siguiendoHoy) _inicioDiaSeleccionado.value = inicioDeHoy()
     }
+
+    // ---------------- Comidas del dia seleccionado ----------------
+
+    /** Totales por comida (y metrica) del dia seleccionado. */
+    val totalesPorComida: StateFlow<List<TotalComida>> =
+        _inicioDiaSeleccionado.flatMapLatest { inicio ->
+            repository.totalesPorComida(inicio, finDeDia(inicio))
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // ---------------- Progreso semanal / mensual ----------------
+
+    /** Hoy (00:00); se refresca al volver a la app para que la ventana avance de dia. */
+    private val _hoy = MutableStateFlow(inicioDeHoy())
+
+    private val _rangoDias = MutableStateFlow(7)
+    val rangoDias: StateFlow<Int> = _rangoDias.asStateFlow()
+
+    fun setRangoProgreso(dias: Int) {
+        _rangoDias.value = dias
+    }
+
+    val progreso: StateFlow<Progreso> =
+        combine(_rangoDias, _hoy) { dias, hoy -> dias to hoy }
+            .flatMapLatest { (dias, hoy) ->
+                val inicios = (dias - 1 downTo 0).map { atras -> inicioRelativo(hoy, -atras) }
+                repository.registrosEnRango(inicios.first(), finDeDia(hoy)).map { registros ->
+                    val totales = registros.groupBy { it.metricaId }.mapValues { (_, lista) ->
+                        val acumulado = FloatArray(dias)
+                        lista.forEach { r ->
+                            val i = inicios.indexOfLast { it <= r.timestamp }
+                            if (i >= 0) acumulado[i] += r.valor
+                        }
+                        acumulado.toList()
+                    }
+                    Progreso(dias, inicios.map { fmtEtiqueta.format(Date(it)) }, totales)
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Progreso())
+
+    // ---------------- Peso corporal ----------------
+
+    val pesos: StateFlow<List<PesoRegistro>> =
+        repository.pesos.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun agregarPeso(kg: Float) {
+        if (kg !in 20f..400f) {
+            avisar("Escribe un peso entre 20 y 400 kg")
+            return
+        }
+        viewModelScope.launch { repository.agregarPeso(kg) }
+    }
+
+    fun eliminarPeso(peso: PesoRegistro) {
+        viewModelScope.launch { repository.eliminarPeso(peso.id) }
+    }
+
+    // ---------------- Respaldo ----------------
+
+    /** Genera el JSON del respaldo y lo entrega a [escribir] (corre fuera del hilo principal). */
+    fun exportar(escribir: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val json = Respaldo.aJson(repository.leerTodo())
+                withContext(Dispatchers.IO) { escribir(json) }
+                avisar("Respaldo guardado")
+            } catch (e: Exception) {
+                avisar("No se pudo guardar el respaldo: ${e.message}")
+            }
+        }
+    }
+
+    /** Reemplaza todos los datos por los del respaldo. Si falla, los datos actuales no cambian. */
+    fun importar(texto: String) {
+        viewModelScope.launch {
+            try {
+                val datos = Respaldo.deJson(texto)
+                repository.reemplazarTodo(datos)
+                avisar("Respaldo restaurado: ${datos.registros.size} registros, ${datos.notas.size} notas")
+            } catch (e: IllegalArgumentException) {
+                avisar(e.message ?: "El archivo no es un respaldo válido")
+            } catch (e: Exception) {
+                avisar("No se pudo restaurar; tus datos no cambiaron")
+            }
+        }
+    }
+
+    // ---------------- Objetivos y busqueda de alimentos ----------------
+
+    /** Actualiza el limite de las metricas reconocidas (calorias, macros, fibra, agua). */
+    fun aplicarObjetivos(o: ObjetivosDiarios) {
+        viewModelScope.launch {
+            val metas = mapOf(
+                Clave.CALORIAS to o.kcal.toFloat(),
+                Clave.PROTEINAS to o.proteinaG.toFloat(),
+                Clave.CARBOHIDRATOS to o.carbohidratosG.toFloat(),
+                Clave.GRASAS to o.grasasG.toFloat(),
+                Clave.FIBRA to o.fibraG.toFloat(),
+                Clave.AGUA to o.aguaL.toFloat()
+            )
+            var cambiadas = 0
+            repository.metricas.first().forEach { config ->
+                val nuevo = claveMetrica(config.nombre)?.let { metas[it] } ?: return@forEach
+                repository.guardarMetrica(config.copy(limiteMaximo = nuevo))
+                cambiadas++
+            }
+            avisar("Metas actualizadas en $cambiadas métricas")
+        }
+    }
+
+    /** Busca en Open Food Facts; ante un fallo de red avisa y devuelve una lista vacia. */
+    suspend fun buscarAlimentos(texto: String): List<AlimentoRemoto> =
+        try {
+            OpenFoodFacts.buscar(texto)
+        } catch (e: IOException) {
+            avisar("No se pudo buscar: revisa tu conexión a internet")
+            emptyList()
+        }
 
     fun limpiarDia() {
         val inicio = _inicioDiaSeleccionado.value
@@ -293,7 +424,7 @@ class MainViewModel(
      *
      * @param valores mapa metricaId -> valor aportado.
      */
-    fun agregarAlimento(nombre: String, valores: Map<String, Float>) {
+    fun agregarAlimento(nombre: String, valores: Map<String, Float>, comida: String? = null) {
         val nombreLimpio = nombre.trim().ifEmpty { "Alimento" }
         val aportes = valores.filterValues { it > 0f }
         if (aportes.isEmpty()) return
@@ -306,7 +437,8 @@ class MainViewModel(
                         valor = valor,
                         timestamp = ts,
                         tipo = "alimento",
-                        detalle = nombreLimpio
+                        detalle = nombreLimpio,
+                        comida = comida
                     )
                 )
             }
@@ -318,7 +450,7 @@ class MainViewModel(
     }
 
     /** Re-aplica un alimento guardado al dia seleccionado (sin duplicar en historial). */
-    fun aplicarAlimentoGuardado(alimento: AlimentoGuardado) {
+    fun aplicarAlimentoGuardado(alimento: AlimentoGuardado, comida: String? = null) {
         val aportes = decodificarValores(alimento.valores).filterValues { it > 0f }
         if (aportes.isEmpty()) return
         viewModelScope.launch {
@@ -330,7 +462,8 @@ class MainViewModel(
                         valor = valor,
                         timestamp = ts,
                         tipo = "alimento",
-                        detalle = alimento.nombre
+                        detalle = alimento.nombre,
+                        comida = comida
                     )
                 )
             }
@@ -488,6 +621,15 @@ class MainViewModel(
     private fun indiceSemana(inicio: Long): Int {
         val c = Calendar.getInstance().apply { timeInMillis = inicio }
         return (c.get(Calendar.DAY_OF_WEEK) + 5) % 7
+    }
+
+    /** Inicio (00:00) del dia que esta [delta] dias respecto de [inicio]. */
+    private fun inicioRelativo(inicio: Long, delta: Int): Long {
+        val c = Calendar.getInstance().apply {
+            timeInMillis = inicio
+            add(Calendar.DAY_OF_MONTH, delta)
+        }
+        return aMedianoche(c)
     }
 
     private fun finDeDia(inicio: Long): Long {
