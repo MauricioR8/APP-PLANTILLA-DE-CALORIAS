@@ -1,22 +1,16 @@
 package com.mauricior8.calorias.ui.screen
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -31,23 +25,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mauricior8.calorias.data.local.entity.MetricaConfig
 import com.mauricior8.calorias.ui.MainViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.mauricior8.calorias.util.Gym
 
 private enum class Pestana(val titulo: String, val icono: ImageVector) {
-    METRICAS("Mi día", Icons.Filled.Star),
+    HOY("Hoy", Icons.Filled.Star),
+    GYM("Gym", Icons.Filled.FitnessCenter),
     PROGRESO("Progreso", Icons.Filled.BarChart),
     NOTAS("Notas", Icons.Filled.Edit),
-    CALCULADORA("Calculadora", Icons.AutoMirrored.Filled.List),
-    TABLAS("Tablas", Icons.Filled.DateRange)
+    MAS("Más", Icons.Filled.Menu)
 }
 
 /** Accion destructiva en espera de confirmacion del usuario. */
@@ -63,18 +55,23 @@ private class AccionPendiente(
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val notas by viewModel.notas.collectAsStateWithLifecycle()
-    val historialCalculos by viewModel.historialCalculos.collectAsStateWithLifecycle()
     val indiceDia by viewModel.indiceDiaSeleccionado.collectAsStateWithLifecycle()
     val etiquetaDia by viewModel.etiquetaDiaSeleccionado.collectAsStateWithLifecycle()
     val diaCompletado by viewModel.diaCompletado.collectAsStateWithLifecycle()
     val fechaMillis by viewModel.fechaSeleccionadaMillis.collectAsStateWithLifecycle()
     val alimentosGuardados by viewModel.alimentosGuardados.collectAsStateWithLifecycle()
     val totalesPorComida by viewModel.totalesPorComida.collectAsStateWithLifecycle()
-    val progreso by viewModel.progreso.collectAsStateWithLifecycle()
-    val rangoDias by viewModel.rangoDias.collectAsStateWithLifecycle()
     val pesos by viewModel.pesos.collectAsStateWithLifecycle()
+    val racha by viewModel.racha.collectAsStateWithLifecycle()
+    val rutinas by viewModel.rutinas.collectAsStateWithLifecycle()
+    val rutinasDelDia by viewModel.rutinasDelDia.collectAsStateWithLifecycle()
+    val seriesDelDia by viewModel.seriesDelDia.collectAsStateWithLifecycle()
+    val suplementos by viewModel.suplementos.collectAsStateWithLifecycle()
+    val suplementosTomados by viewModel.suplementosTomados.collectAsStateWithLifecycle()
+    val registrosDelDia by viewModel.registrosDelDia.collectAsStateWithLifecycle()
+    val perfil by viewModel.perfilBase.collectAsStateWithLifecycle()
 
-    var pestana by remember { mutableStateOf(Pestana.METRICAS) }
+    var pestana by rememberSaveable { mutableStateOf(Pestana.HOY) }
 
     // Estado de dialogos.
     var mostrarEditor by remember { mutableStateOf(false) }
@@ -82,8 +79,8 @@ fun MainScreen(viewModel: MainViewModel) {
     var metricaHistorial by remember { mutableStateOf<MetricaConfig?>(null) }
     var mostrarAlimento by remember { mutableStateOf(false) }
     var mostrarObjetivos by remember { mutableStateOf(false) }
-    var mostrarRecordatorio by remember { mutableStateOf(false) }
-    var menuAbierto by remember { mutableStateOf(false) }
+    var mostrarDetalle by remember { mutableStateOf(false) }
+    var mostrarSuplementos by remember { mutableStateOf(false) }
     var pendiente by remember { mutableStateOf<AccionPendiente?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -91,38 +88,29 @@ fun MainScreen(viewModel: MainViewModel) {
         viewModel.mensajes.collect { snackbarHostState.showSnackbar(it) }
     }
 
-    // ---- Respaldo (Storage Access Framework: el usuario elige donde guardar o abrir) ----
-    val contexto = LocalContext.current
-    val guardarRespaldo = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            viewModel.exportar { json ->
-                val salida = contexto.contentResolver.openOutputStream(uri, "wt")
-                    ?: throw java.io.IOException("No se pudo abrir el archivo")
-                salida.use { it.write(json.toByteArray(Charsets.UTF_8)) }
-            }
+    // Colores de la tira de dias (segun la rutina de fuerza de cada dia) y resumen del gym de hoy.
+    val coloresDias = remember(rutinas) {
+        (1..7).map { iso ->
+            rutinas.firstOrNull { !it.diaria && Gym.aplicaEn(it, iso) }?.let { colorRutina(it.colorHex) }
         }
     }
-    val abrirRespaldo = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            val texto = try {
-                contexto.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-            } catch (e: Exception) {
-                null
+    val gymHoy = remember(rutinasDelDia, seriesDelDia, rutinas) {
+        if (rutinas.isEmpty()) {
+            null
+        } else {
+            val fuerza = rutinasDelDia.firstOrNull { !it.rutina.diaria }
+            val ejercicios = rutinasDelDia.flatMap { it.ejercicios }
+            val hechas = seriesDelDia.count { s ->
+                ejercicios.any { it.id == s.ejercicioId && s.indice < Gym.totalSeries(it) }
             }
-            if (texto == null) {
-                viewModel.avisar("No se pudo leer el archivo")
-            } else {
-                pendiente = AccionPendiente(
-                    titulo = "Restaurar respaldo",
-                    mensaje = "Se reemplazarán TODOS tus datos actuales por los del archivo. " +
-                        "Esta acción no se puede deshacer.",
-                    textoConfirmar = "Restaurar"
-                ) { viewModel.importar(texto) }
-            }
+            ResumenGymHoy(
+                titulo = fuerza?.rutina?.nombre ?: "Bloque diario",
+                color = fuerza?.rutina?.colorHex?.let { colorRutina(it) },
+                ejercicios = ejercicios.size,
+                hechas = hechas,
+                totales = ejercicios.sumOf { Gym.totalSeries(it) },
+                descanso = fuerza == null
+            )
         }
     }
 
@@ -133,39 +121,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 title = { Text(pestana.titulo) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                actions = {
-                    IconButton(onClick = { menuAbierto = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Más opciones")
-                    }
-                    DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Calcular objetivos") },
-                            onClick = { menuAbierto = false; mostrarObjetivos = true }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Recordatorio de agua") },
-                            onClick = { menuAbierto = false; mostrarRecordatorio = true }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Guardar respaldo") },
-                            onClick = {
-                                menuAbierto = false
-                                val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                                guardarRespaldo.launch("calorias-respaldo-$fecha.json")
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Restaurar respaldo") },
-                            onClick = {
-                                menuAbierto = false
-                                abrirRespaldo.launch(arrayOf("application/json", "text/plain", "*/*"))
-                            }
-                        )
-                    }
-                }
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
         bottomBar = {
@@ -181,7 +138,7 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         },
         floatingActionButton = {
-            if (pestana == Pestana.METRICAS) {
+            if (pestana == Pestana.HOY) {
                 FloatingActionButton(onClick = {
                     metricaEnEdicion = null
                     mostrarEditor = true
@@ -192,14 +149,17 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     ) { padding ->
         when (pestana) {
-            Pestana.METRICAS -> MetricasScreen(
+            Pestana.HOY -> MetricasScreen(
                 metricas = state.metricas,
                 isLoading = state.isLoading,
+                diaDescanso = state.diaDescanso,
                 diasSemana = viewModel.diasSemana,
                 indiceDia = indiceDia,
                 etiquetaDia = etiquetaDia,
+                coloresDias = coloresDias,
                 diaCompletado = diaCompletado,
                 fechaMillis = fechaMillis,
+                racha = racha,
                 onSeleccionarDia = viewModel::seleccionarDia,
                 onFechaManual = viewModel::setFechaManual,
                 onToggleCompletado = viewModel::marcarDiaCompletado,
@@ -210,8 +170,17 @@ fun MainScreen(viewModel: MainViewModel) {
                         textoConfirmar = "Limpiar"
                     ) { viewModel.limpiarDia() }
                 },
+                onCopiarDiaAnterior = {
+                    pendiente = AccionPendiente(
+                        titulo = "Copiar día anterior",
+                        mensaje = "Se agregarán a $etiquetaDia todos los registros del día anterior.",
+                        textoConfirmar = "Copiar"
+                    ) { viewModel.copiarDiaAnterior() }
+                },
+                onVerDetalle = { mostrarDetalle = true },
                 onAgregar = viewModel::agregarRegistro,
                 onAgregarAlimento = { mostrarAlimento = true },
+                onAgregarAgua = viewModel::agregarAgua,
                 onVerHistorial = { metricaHistorial = it },
                 onEditar = { metricaEnEdicion = it; mostrarEditor = true },
                 onEliminar = { metrica ->
@@ -232,19 +201,18 @@ fun MainScreen(viewModel: MainViewModel) {
                 onMoverArriba = viewModel::moverArriba,
                 onMoverAbajo = viewModel::moverAbajo,
                 totalesPorComida = totalesPorComida,
+                gymHoy = gymHoy,
+                onAbrirGym = { pestana = Pestana.GYM },
+                suplementos = suplementos,
+                suplementosTomados = suplementosTomados,
+                onSuplemento = viewModel::marcarSuplemento,
+                onGestionarSuplementos = { mostrarSuplementos = true },
                 modifier = Modifier.padding(padding)
             )
 
-            Pestana.PROGRESO -> ProgresoScreen(
-                metricas = state.metricas.map { it.config },
-                progreso = progreso,
-                rangoDias = rangoDias,
-                pesos = pesos,
-                onRango = viewModel::setRangoProgreso,
-                onAgregarPeso = viewModel::agregarPeso,
-                onEliminarPeso = viewModel::eliminarPeso,
-                modifier = Modifier.padding(padding)
-            )
+            Pestana.GYM -> GymScreen(viewModel, Modifier.padding(padding))
+
+            Pestana.PROGRESO -> ProgresoScreen(viewModel, Modifier.padding(padding))
 
             Pestana.NOTAS -> NotasScreen(
                 notas = notas,
@@ -253,15 +221,12 @@ fun MainScreen(viewModel: MainViewModel) {
                 modifier = Modifier.padding(padding)
             )
 
-            Pestana.CALCULADORA -> CalculadoraScreen(
-                historial = historialCalculos,
-                onCalcular = viewModel::calcular,
-                onLimpiarHistorial = viewModel::limpiarHistorialCalculos,
-                modifier = Modifier.padding(padding)
-            )
-
-            Pestana.TABLAS -> TablasScreen(
+            Pestana.MAS -> MasScreen(
                 viewModel = viewModel,
+                onObjetivos = { mostrarObjetivos = true },
+                onPedirConfirmacion = { titulo, mensaje, texto, accion ->
+                    pendiente = AccionPendiente(titulo, mensaje, texto, accion)
+                },
                 modifier = Modifier.padding(padding)
             )
         }
@@ -276,11 +241,11 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.agregarAlimento(nombre, valores, comida)
                 mostrarAlimento = false
             },
-            onAplicar = { alimento, comida -> viewModel.aplicarAlimentoGuardado(alimento, comida) },
-            onEditarGuardado = { a, nombre, valores ->
-                viewModel.editarAlimentoGuardado(a, nombre, valores)
-            },
+            onAplicar = { alimento, comida, porcion -> viewModel.aplicarAlimentoGuardado(alimento, comida, porcion) },
+            onEditarGuardado = { a, nombre, valores -> viewModel.editarAlimentoGuardado(a, nombre, valores) },
             onEliminarGuardado = { viewModel.eliminarAlimentoGuardado(it) },
+            onFavorito = viewModel::marcarFavorito,
+            onCombinar = viewModel::combinarAlimentos,
             onGuardarNota = { viewModel.guardarNota(it) },
             onBuscar = viewModel::buscarAlimentos,
             onCancelar = { mostrarAlimento = false }
@@ -291,10 +256,10 @@ fun MainScreen(viewModel: MainViewModel) {
     if (mostrarEditor) {
         MetricaEditorDialog(
             metricaExistente = metricaEnEdicion,
-            onConfirmar = { nombre, unidad, limite, colorHex, tipoGrafica ->
+            onConfirmar = { nombre, unidad, limite, colorHex, tipoGrafica, limiteDescanso ->
                 val enEdicion = metricaEnEdicion
                 if (enEdicion == null) {
-                    viewModel.crearMetrica(nombre, unidad, limite, colorHex, tipoGrafica)
+                    viewModel.crearMetrica(nombre, unidad, limite, colorHex, tipoGrafica, limiteDescanso)
                 } else {
                     viewModel.editarMetrica(
                         enEdicion.copy(
@@ -302,7 +267,8 @@ fun MainScreen(viewModel: MainViewModel) {
                             unidad = unidad,
                             limiteMaximo = limite,
                             colorHex = colorHex,
-                            tipoGrafica = tipoGrafica
+                            tipoGrafica = tipoGrafica,
+                            limiteDescanso = limiteDescanso
                         )
                     )
                 }
@@ -325,18 +291,33 @@ fun MainScreen(viewModel: MainViewModel) {
         )
     }
 
-    if (mostrarObjetivos) {
-        ObjetivosDialog(
-            pesoInicial = pesos.lastOrNull()?.kg,
-            onAplicar = viewModel::aplicarObjetivos,
-            onCerrar = { mostrarObjetivos = false }
+    if (mostrarDetalle) {
+        DetalleDiaDialog(
+            etiquetaDia = etiquetaDia,
+            registros = registrosDelDia,
+            metricas = state.metricas.map { it.config },
+            onCerrar = { mostrarDetalle = false }
         )
     }
 
-    if (mostrarRecordatorio) {
-        RecordatorioDialog(
-            onAviso = viewModel::avisar,
-            onCerrar = { mostrarRecordatorio = false }
+    if (mostrarSuplementos) {
+        SuplementosDialog(
+            suplementos = suplementos,
+            onAgregar = viewModel::agregarSuplemento,
+            onEliminar = viewModel::eliminarSuplemento,
+            onCerrar = { mostrarSuplementos = false }
+        )
+    }
+
+    if (mostrarObjetivos) {
+        ObjetivosDialog(
+            pesoInicial = pesos.lastOrNull()?.kg,
+            perfilGuardado = perfil,
+            onAplicar = { objetivos, p ->
+                viewModel.guardarPerfil(p)
+                viewModel.aplicarObjetivos(objetivos)
+            },
+            onCerrar = { mostrarObjetivos = false }
         )
     }
 

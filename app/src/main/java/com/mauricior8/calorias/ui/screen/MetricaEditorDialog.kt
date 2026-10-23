@@ -44,13 +44,18 @@ import com.mauricior8.calorias.util.colorDesdeHex
 @Composable
 fun MetricaEditorDialog(
     metricaExistente: MetricaConfig? = null,
-    onConfirmar: (nombre: String, unidad: String, limite: Float?, colorHex: String, tipoGrafica: String) -> Unit,
+    onConfirmar: (nombre: String, unidad: String, limite: Float?, colorHex: String, tipoGrafica: String, limiteDescanso: Float?) -> Unit,
     onCancelar: () -> Unit
 ) {
     var nombre by remember { mutableStateOf(metricaExistente?.nombre ?: "") }
     var unidad by remember { mutableStateOf(metricaExistente?.unidad ?: "kcal") }
     var limite by remember {
         mutableStateOf(metricaExistente?.limiteMaximo?.let {
+            if (it % 1f == 0f) it.toInt().toString() else it.toString()
+        } ?: "")
+    }
+    var limiteDescanso by remember {
+        mutableStateOf(metricaExistente?.limiteDescanso?.let {
             if (it % 1f == 0f) it.toInt().toString() else it.toString()
         } ?: "")
     }
@@ -87,6 +92,18 @@ fun MetricaEditorDialog(
                     value = limite,
                     onValueChange = { limite = it.filter { c -> c.isDigit() || c == '.' } },
                     label = { Text("Límite diario (opcional)") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = limiteDescanso,
+                    onValueChange = { limiteDescanso = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Límite en día de descanso (opcional)") },
+                    supportingText = { Text("Si lo dejas vacío se usa el límite diario") },
                     singleLine = true,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = KeyboardType.Decimal
@@ -138,7 +155,9 @@ fun MetricaEditorDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirmar(nombre, unidad, limite.toFloatOrNull(), colorHex, tipoGrafica) }
+                onClick = {
+                    onConfirmar(nombre, unidad, limite.toFloatOrNull(), colorHex, tipoGrafica, limiteDescanso.toFloatOrNull())
+                }
             ) { Text(if (metricaExistente == null) "Crear" else "Guardar") }
         },
         dismissButton = {

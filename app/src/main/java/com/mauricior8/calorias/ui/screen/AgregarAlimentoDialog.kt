@@ -15,6 +15,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
@@ -59,9 +62,11 @@ fun AgregarAlimentoDialog(
     metricas: List<MetricaConfig>,
     alimentos: List<AlimentoGuardado>,
     onConfirmar: (nombre: String, valores: Map<String, Float>, comida: String) -> Unit,
-    onAplicar: (AlimentoGuardado, comida: String) -> Unit,
+    onAplicar: (AlimentoGuardado, comida: String, porcion: Float) -> Unit,
     onEditarGuardado: (AlimentoGuardado, nombre: String, valores: Map<String, Float>) -> Unit,
     onEliminarGuardado: (AlimentoGuardado) -> Unit,
+    onFavorito: (AlimentoGuardado) -> Unit,
+    onCombinar: (nombre: String, alimentos: List<AlimentoGuardado>) -> Unit,
     onGuardarNota: (String) -> Unit,
     onBuscar: suspend (String) -> List<AlimentoRemoto>,
     onCancelar: () -> Unit
@@ -71,6 +76,10 @@ fun AgregarAlimentoDialog(
     var intentoEnviar by remember { mutableStateOf(false) }
     var editando by remember { mutableStateOf<AlimentoGuardado?>(null) }
     var guardarComoNota by remember { mutableStateOf(false) }
+    var porcion by remember { mutableFloatStateOf(1f) }
+    var combinar by remember { mutableStateOf(setOf<Int>()) }
+    var nombreCombinacion by remember { mutableStateOf("") }
+    var alimentoPorBorrar by remember { mutableStateOf<AlimentoGuardado?>(null) }
     var comida by remember { mutableStateOf(Comidas.sugerida(Calendar.getInstance().get(Calendar.HOUR_OF_DAY))) }
 
     // Busqueda en Open Food Facts.
@@ -252,19 +261,40 @@ fun AgregarAlimentoDialog(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
+                    Text("Porción al agregar", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(0.5f, 1f, 1.5f, 2f).forEach { p ->
+                            FilterChip(
+                                selected = porcion == p,
+                                onClick = { porcion = p },
+                                label = { Text("×${if (p % 1f == 0f) p.toInt().toString() else p.toString()}") }
+                            )
+                        }
+                    }
                     alimentos.forEach { a ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(a.nombre, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { onAplicar(a, comida) }) {
+                            Checkbox(
+                                checked = a.id in combinar,
+                                onCheckedChange = { combinar = if (it) combinar + a.id else combinar - a.id }
+                            )
+                            Text(a.nombre, modifier = Modifier.weight(1f), maxLines = 2)
+                            IconButton(onClick = { onFavorito(a) }) {
+                                Icon(
+                                    if (a.favorito) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = if (a.favorito) "Quitar de favoritos" else "Marcar favorito",
+                                    tint = if (a.favorito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { onAplicar(a, comida, porcion) }) {
                                 Icon(Icons.Default.Add, contentDescription = "Agregar al día")
                             }
                             IconButton(onClick = { cargarParaEditar(a) }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Editar")
                             }
-                            IconButton(onClick = { onEliminarGuardado(a) }) {
+                            IconButton(onClick = { alimentoPorBorrar = a }) {
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = "Eliminar",
@@ -272,6 +302,25 @@ fun AgregarAlimentoDialog(
                                 )
                             }
                         }
+                    }
+                    if (combinar.size >= 2) {
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+                        Text("Combinar ${combinar.size} alimentos en una comida", fontWeight = FontWeight.SemiBold)
+                        OutlinedTextField(
+                            value = nombreCombinacion,
+                            onValueChange = { nombreCombinacion = it },
+                            label = { Text("Nombre (ej: Desayuno estándar)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        TextButton(
+                            enabled = nombreCombinacion.isNotBlank(),
+                            onClick = {
+                                onCombinar(nombreCombinacion, alimentos.filter { it.id in combinar })
+                                combinar = emptySet()
+                                nombreCombinacion = ""
+                            }
+                        ) { Text("Guardar combinación") }
                     }
                 }
             }
@@ -305,4 +354,13 @@ fun AgregarAlimentoDialog(
             TextButton(onClick = onCancelar) { Text("Cerrar") }
         }
     )
+
+    alimentoPorBorrar?.let { a ->
+        ConfirmarDialog(
+            titulo = "Eliminar alimento",
+            mensaje = "Se quitará \"${a.nombre}\" de tu historial de alimentos.",
+            onConfirmar = { onEliminarGuardado(a); alimentoPorBorrar = null },
+            onCancelar = { alimentoPorBorrar = null }
+        )
+    }
 }

@@ -6,6 +6,10 @@
     <!-- Recordatorio de agua (Android 13+ pide permiso en tiempo de ejecucion). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Vibracion al terminar un descanso o un intervalo del gym. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Bloqueo opcional con huella, rostro o PIN. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:name=".CaloriasApp"
@@ -27,6 +31,9 @@
 
         <receiver
             android:name=".reminder.AguaReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".reminder.RecordatorioReceiver"
             android:exported="false" />
         <receiver
             android:name=".reminder.ArranqueReceiver"

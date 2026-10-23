@@ -13,8 +13,8 @@ android {
         applicationId = "com.mauricior8.calorias"
         minSdk = 24
         targetSdk = 34
-        versionCode = 7
-        versionName = "7.0"
+        versionCode = 8
+        versionName = "8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -91,6 +91,9 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // Bloqueo con huella / PIN
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // Testing
     testImplementation(libs.junit)

@@ -15,6 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.unit.sp
+import com.mauricior8.calorias.data.local.entity.Suplemento
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,32 +79,54 @@ import com.mauricior8.calorias.util.claveMetrica
 import com.mauricior8.calorias.util.colorDesdeHex
 import com.mauricior8.calorias.util.formatoValor
 
+/** Resumen del entrenamiento de hoy para la tarjeta de "Hoy". */
+data class ResumenGymHoy(
+    val titulo: String,
+    val color: Color?,
+    val ejercicios: Int,
+    val hechas: Int,
+    val totales: Int,
+    val descanso: Boolean
+)
+
 /**
- * Lista de metricas con tarjetas rediseñadas. Permite sumar valores, ver
- * historial, editar, eliminar y reordenar cada metrica.
+ * Pantalla "Hoy": tira de dias, resumen con anillo de calorias y macros, entrenamiento,
+ * comidas, agua rapida, suplementos y las tarjetas de cada metrica.
  */
 @Composable
 fun MetricasScreen(
     metricas: List<MetricaConItem>,
     isLoading: Boolean,
+    diaDescanso: Boolean,
     diasSemana: List<String>,
     indiceDia: Int,
     etiquetaDia: String,
+    coloresDias: List<Color?>,
     diaCompletado: Boolean,
     fechaMillis: Long,
+    racha: Int,
     onSeleccionarDia: (Int) -> Unit,
     onFechaManual: (Long) -> Unit,
     onToggleCompletado: (Boolean) -> Unit,
     onLimpiarDia: () -> Unit,
+    onCopiarDiaAnterior: () -> Unit,
+    onVerDetalle: () -> Unit,
     onAgregar: (metricaId: String, valor: Float) -> Unit,
     onAgregarAlimento: () -> Unit,
+    onAgregarAgua: () -> Unit,
     onVerHistorial: (MetricaConfig) -> Unit,
     onEditar: (MetricaConfig) -> Unit,
     onEliminar: (MetricaConfig) -> Unit,
     onLimpiarMetrica: (String) -> Unit,
     onMoverArriba: (String) -> Unit,
     onMoverAbajo: (String) -> Unit,
-    totalesPorComida: List<TotalComida> = emptyList(),
+    totalesPorComida: List<TotalComida>,
+    gymHoy: ResumenGymHoy?,
+    onAbrirGym: () -> Unit,
+    suplementos: List<Suplemento>,
+    suplementosTomados: Set<Int>,
+    onSuplemento: (Int, Boolean) -> Unit,
+    onGestionarSuplementos: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -112,35 +139,35 @@ fun MetricasScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
             ) {
-                item(key = "selector_dia") {
-                    SelectorDia(
-                        diasSemana = diasSemana,
-                        indiceDia = indiceDia,
-                        etiquetaDia = etiquetaDia,
-                        diaCompletado = diaCompletado,
-                        fechaMillis = fechaMillis,
-                        onSeleccionarDia = onSeleccionarDia,
-                        onFechaManual = onFechaManual,
-                        onToggleCompletado = onToggleCompletado,
-                        onLimpiarDia = onLimpiarDia
+                item(key = "cabecera_dia") {
+                    CabeceraDia(
+                        diasSemana, indiceDia, etiquetaDia, coloresDias, diaCompletado, fechaMillis,
+                        onSeleccionarDia, onFechaManual, onToggleCompletado,
+                        onLimpiarDia, onCopiarDiaAnterior, onVerDetalle
                     )
                 }
-                if (metricas.isNotEmpty()) {
-                    item(key = "metas") { MetasPanel(metricas = metricas) }
+                if (metricas.any { claveMetrica(it.config.nombre) == Clave.CALORIAS }) {
+                    item(key = "hero") { HeroResumen(metricas, diaDescanso, racha) }
+                }
+                if (gymHoy != null) {
+                    item(key = "gym_hoy") { TarjetaGymHoy(gymHoy, onAbrirGym) }
                 }
                 if (totalesPorComida.isNotEmpty()) {
-                    item(key = "por_comida") {
-                        ResumenComidas(metricas = metricas, totales = totalesPorComida)
-                    }
+                    item(key = "por_comida") { ResumenComidas(metricas = metricas, totales = totalesPorComida) }
                 }
                 item(key = "btn_alimento") {
-                    Button(
-                        onClick = onAgregarAlimento,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Button(onClick = onAgregarAlimento, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("Agregar alimento")
+                    }
+                }
+                metricas.firstOrNull { claveMetrica(it.config.nombre) == Clave.AGUA }?.let { agua ->
+                    item(key = "agua") { TarjetaAgua(agua, onAgregarAgua) }
+                }
+                if (suplementos.isNotEmpty()) {
+                    item(key = "suplementos") {
+                        TarjetaSuplementos(suplementos, suplementosTomados, onSuplemento, onGestionarSuplementos)
                     }
                 }
                 if (metricas.isEmpty()) {
@@ -171,87 +198,68 @@ fun MetricasScreen(
     }
 }
 
-/**
- * Selector del dia de la semana (Lunes-Domingo), con marca de "dia completado"
- * y boton para limpiar/reiniciar los datos del dia.
- */
+/** Tira Lun-Dom + fecha, "dia completado" y menu de acciones del dia. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SelectorDia(
+private fun CabeceraDia(
     diasSemana: List<String>,
     indiceDia: Int,
     etiquetaDia: String,
+    coloresDias: List<Color?>,
     diaCompletado: Boolean,
     fechaMillis: Long,
     onSeleccionarDia: (Int) -> Unit,
     onFechaManual: (Long) -> Unit,
     onToggleCompletado: (Boolean) -> Unit,
-    onLimpiarDia: () -> Unit
+    onLimpiarDia: () -> Unit,
+    onCopiarDiaAnterior: () -> Unit,
+    onVerDetalle: () -> Unit
 ) {
     var menuAbierto by remember { mutableStateOf(false) }
     var mostrarDatePicker by remember { mutableStateOf(false) }
 
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(Modifier.weight(1f)) {
-                    OutlinedButton(
-                        onClick = { menuAbierto = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(etiquetaDia, modifier = Modifier.weight(1f))
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Elegir día")
-                    }
-                    DropdownMenu(
-                        expanded = menuAbierto,
-                        onDismissRequest = { menuAbierto = false }
-                    ) {
-                        diasSemana.forEachIndexed { i, dia ->
-                            DropdownMenuItem(
-                                text = { Text(dia) },
-                                onClick = { menuAbierto = false; onSeleccionarDia(i) }
-                            )
-                        }
-                    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TiraSemana(diasSemana.map { it.take(3) }, indiceDia, coloresDias, onSeleccionarDia)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(etiquetaDia, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f))
+            IconButton(onClick = { mostrarDatePicker = true }) {
+                Icon(Icons.Default.DateRange, contentDescription = "Elegir fecha exacta", tint = MaterialTheme.colorScheme.primary)
+            }
+            Box {
+                IconButton(onClick = { menuAbierto = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Acciones del día")
                 }
-                IconButton(onClick = { mostrarDatePicker = true }) {
-                    Icon(
-                        Icons.Default.DateRange,
-                        contentDescription = "Elegir fecha exacta",
-                        tint = MaterialTheme.colorScheme.primary
+                DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Ver detalle del día") },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.List, null) },
+                        onClick = { menuAbierto = false; onVerDetalle() }
                     )
-                }
-                IconButton(onClick = onLimpiarDia) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = "Limpiar día",
-                        tint = MaterialTheme.colorScheme.error
+                    DropdownMenuItem(
+                        text = { Text("Copiar día anterior") },
+                        leadingIcon = { Icon(Icons.Default.Add, null) },
+                        onClick = { menuAbierto = false; onCopiarDiaAnterior() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Limpiar día") },
+                        leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                        onClick = { menuAbierto = false; onLimpiarDia() }
                     )
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = diaCompletado,
-                    onCheckedChange = onToggleCompletado,
-                    colors = CheckboxDefaults.colors(checkedColor = VerdeCompletado)
-                )
-                Text(
-                    "Día completado (calorías y macros)",
-                    color = if (diaCompletado) VerdeCompletado else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (diaCompletado) FontWeight.Bold else FontWeight.Normal
-                )
-            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = diaCompletado,
+                onCheckedChange = onToggleCompletado,
+                colors = CheckboxDefaults.colors(checkedColor = VerdeCompletado)
+            )
+            Text(
+                "Día completado (calorías y macros)",
+                color = if (diaCompletado) VerdeCompletado else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (diaCompletado) FontWeight.Bold else FontWeight.Normal
+            )
         }
     }
 
@@ -265,89 +273,124 @@ private fun SelectorDia(
                     mostrarDatePicker = false
                 }) { Text("Aceptar") }
             },
-            dismissButton = {
-                TextButton(onClick = { mostrarDatePicker = false }) { Text("Cancelar") }
+            dismissButton = { TextButton(onClick = { mostrarDatePicker = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = estado) }
+    }
+}
+
+/** Anillo grande de calorias con lo que queda y barras de macros. */
+@Composable
+private fun HeroResumen(metricas: List<MetricaConItem>, diaDescanso: Boolean, racha: Int) {
+    val cal = metricas.firstOrNull { claveMetrica(it.config.nombre) == Clave.CALORIAS } ?: return
+    val color = colorDesdeHex(cal.config.colorHex)
+    val limite = cal.limite
+    val restante = limite?.let { it - cal.totalHoy }
+
+    Bloque {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AnilloGrande(cal.progreso, color, Modifier.size(132.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(formatoValor(cal.totalHoy), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        limite?.let { "de ${formatoValor(it)} ${cal.config.unidad}" } ?: cal.config.unidad,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        ) {
-            DatePicker(state = estado)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (restante != null) {
+                    Text(
+                        if (restante >= 0) "Te quedan ${formatoValor(restante)} ${cal.config.unidad}"
+                        else "Te pasaste ${formatoValor(-restante)} ${cal.config.unidad}",
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (restante < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (diaDescanso) Insignia("Día de descanso", MaterialTheme.colorScheme.secondary)
+                    if (racha > 0) Insignia("Racha: $racha", VerdeCompletado)
+                }
+                listOf(Clave.PROTEINAS, Clave.CARBOHIDRATOS, Clave.GRASAS).forEach { clave ->
+                    val m = metricas.firstOrNull { claveMetrica(it.config.nombre) == clave } ?: return@forEach
+                    val c = colorDesdeHex(m.config.colorHex)
+                    Column {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(m.config.nombre, style = MaterialTheme.typography.labelMedium, color = c, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                formatoValor(m.totalHoy) + (m.limite?.let { "/${formatoValor(it)}" } ?: "") + " ${m.config.unidad}",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        BarraProgreso(m.progreso, if (m.limite != null && m.totalHoy > m.limite!!) MaterialTheme.colorScheme.error else c, alto = 6)
+                    }
+                }
+            }
         }
     }
 }
 
-/**
- * Panel superior con las metas/limites del dia. Cada atributo se muestra con su
- * propio color (el de la metrica) y una barra de progreso; avisa cuando se pasa.
- */
 @Composable
-private fun MetasPanel(metricas: List<MetricaConItem>) {
-    val conLimite = metricas.filter { it.config.limiteMaximo != null }
-    if (conLimite.isEmpty()) return
-
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
-    ) {
-        Column(Modifier.padding(16.dp)) {
+private fun TarjetaGymHoy(r: ResumenGymHoy, onAbrir: () -> Unit) {
+    Bloque(titulo = "Entrenamiento de hoy", acento = r.color) {
+        if (r.descanso) {
+            Text("Hoy es día de descanso.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Text(r.titulo, fontWeight = FontWeight.SemiBold)
             Text(
-                "Metas del día",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                "${r.ejercicios} ejercicios · ${r.hechas} de ${r.totales} series",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(12.dp))
-            conLimite.forEachIndexed { index, item ->
-                if (index > 0) Spacer(Modifier.height(12.dp))
-                val color = colorDesdeHex(item.config.colorHex)
-                val limite = item.config.limiteMaximo ?: 0f
-                val excedido = item.totalHoy > limite
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(12.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(color)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            item.config.nombre,
-                            fontWeight = FontWeight.SemiBold,
-                            color = color
-                        )
-                    }
-                    Text(
-                        text = "${formatoValor(item.totalHoy)} / ${formatoValor(limite)} ${item.config.unidad}" +
-                            if (excedido) "  ¡Excedido!" else "",
-                        fontWeight = if (excedido) FontWeight.Bold else FontWeight.Normal,
-                        color = if (excedido) MaterialTheme.colorScheme.error else color
-                    )
-                }
+            Spacer(Modifier.height(8.dp))
+            BarraProgreso(if (r.totales == 0) 0f else r.hechas / r.totales.toFloat(), r.color ?: MaterialTheme.colorScheme.primary)
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onAbrir) { Text(if (r.hechas == 0) "Empezar" else "Continuar") }
+        }
+    }
+}
+
+@Composable
+private fun TarjetaAgua(agua: MetricaConItem, onAgregarAgua: () -> Unit) {
+    val color = colorDesdeHex(agua.config.colorHex)
+    Bloque(titulo = agua.config.nombre, acento = color) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    formatoValor(agua.totalHoy) + (agua.limite?.let { " / ${formatoValor(it)}" } ?: "") + " ${agua.config.unidad}",
+                    fontWeight = FontWeight.SemiBold
+                )
                 Spacer(Modifier.height(6.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(color.copy(alpha = 0.18f))
-                    )
-                    Box(
-                        Modifier
-                            .fillMaxWidth(item.progreso)
-                            .fillMaxSize()
-                            .background(if (excedido) MaterialTheme.colorScheme.error else color)
-                    )
-                }
+                BarraProgreso(agua.progreso, color)
             }
+            Spacer(Modifier.width(12.dp))
+            FilledTonalButton(onClick = onAgregarAgua) { Text("+250 ml") }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TarjetaSuplementos(
+    suplementos: List<Suplemento>,
+    tomados: Set<Int>,
+    onSuplemento: (Int, Boolean) -> Unit,
+    onGestionar: () -> Unit
+) {
+    Bloque(titulo = "Suplementos (${tomados.size}/${suplementos.size})") {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            suplementos.forEach { s ->
+                FilterChip(
+                    selected = s.id in tomados,
+                    onClick = { onSuplemento(s.id, s.id !in tomados) },
+                    label = { Text(s.nombre) }
+                )
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onGestionar) { Text("Editar lista") }
         }
     }
 }
@@ -413,7 +456,7 @@ private fun MetricaCard(
                 MiniGrafica(
                     tipo = item.config.tipoGrafica,
                     progreso = progresoAnim,
-                    tieneLimite = item.config.limiteMaximo != null,
+                    tieneLimite = item.limite != null,
                     color = color
                 )
 
@@ -425,7 +468,7 @@ private fun MetricaCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    val limiteTxt = item.config.limiteMaximo?.let { " / ${formatoValor(it)}" } ?: ""
+                    val limiteTxt = item.limite?.let { " / ${formatoValor(it)}" } ?: ""
                     Text(
                         text = "${formatoValor(item.totalHoy)}$limiteTxt ${item.config.unidad}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -479,7 +522,7 @@ private fun MetricaCard(
                 }
             }
 
-            if (item.config.limiteMaximo != null) {
+            if (item.limite != null) {
                 Spacer(Modifier.height(12.dp))
                 Box(
                     Modifier

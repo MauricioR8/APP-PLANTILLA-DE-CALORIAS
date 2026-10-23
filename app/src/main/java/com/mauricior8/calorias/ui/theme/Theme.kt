@@ -54,12 +54,20 @@ private val DarkColors = darkColorScheme(
     error = Color(0xFFFF6B81)
 )
 
+/**
+ * @param tema "sistema" (segun el telefono), "claro" u "oscuro" (ajuste del usuario).
+ */
 @Composable
 fun CaloriasTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    tema: String = "sistema",
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColors else LightColors
+    val oscuro = when (tema) {
+        "claro" -> false
+        "oscuro" -> true
+        else -> isSystemInDarkTheme()
+    }
+    val colorScheme = if (oscuro) DarkColors else LightColors
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography(),

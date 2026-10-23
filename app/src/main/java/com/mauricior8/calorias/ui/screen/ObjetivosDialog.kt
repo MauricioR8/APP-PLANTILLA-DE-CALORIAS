@@ -36,6 +36,7 @@ import com.mauricior8.calorias.util.MetaPeso
 import com.mauricior8.calorias.util.Objetivos
 import com.mauricior8.calorias.util.ObjetivosDiarios
 import com.mauricior8.calorias.util.Perfil
+import com.mauricior8.calorias.util.PerfilBase
 import com.mauricior8.calorias.util.Sexo
 import java.util.Locale
 
@@ -48,17 +49,22 @@ import java.util.Locale
 @Composable
 fun ObjetivosDialog(
     pesoInicial: Float?,
-    onAplicar: (ObjetivosDiarios) -> Unit,
+    perfilGuardado: PerfilBase?,
+    onAplicar: (ObjetivosDiarios, Perfil) -> Unit,
     onCerrar: () -> Unit
 ) {
-    var sexo by rememberSaveable { mutableStateOf(Sexo.HOMBRE) }
-    var actividad by rememberSaveable { mutableStateOf(Actividad.MODERADA) }
-    var meta by rememberSaveable { mutableStateOf(MetaPeso.MANTENER) }
-    var edad by rememberSaveable { mutableStateOf("") }
+    var sexo by rememberSaveable { mutableStateOf(perfilGuardado?.sexo ?: Sexo.HOMBRE) }
+    var actividad by rememberSaveable { mutableStateOf(perfilGuardado?.actividad ?: Actividad.MODERADA) }
+    var meta by rememberSaveable { mutableStateOf(perfilGuardado?.meta ?: MetaPeso.MANTENER) }
+    var edad by rememberSaveable { mutableStateOf(perfilGuardado?.edad?.toString() ?: "") }
     var peso by rememberSaveable {
         mutableStateOf(pesoInicial?.let { String.format(Locale.US, "%.1f", it) } ?: "")
     }
-    var estatura by rememberSaveable { mutableStateOf("") }
+    var estatura by rememberSaveable {
+        mutableStateOf(
+            perfilGuardado?.estaturaCm?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: ""
+        )
+    }
     var proteinaPorKg by remember { mutableFloatStateOf(meta.proteinaPorKg.toFloat()) }
 
     val perfil = remember(sexo, actividad, meta, edad, peso, estatura) {
@@ -122,7 +128,10 @@ fun ObjetivosDialog(
         confirmButton = {
             TextButton(
                 enabled = resultado != null,
-                onClick = { resultado?.let(onAplicar); onCerrar() }
+                onClick = {
+                    if (resultado != null && perfil != null) onAplicar(resultado, perfil)
+                    onCerrar()
+                }
             ) { Text("Aplicar a mis metas") }
         },
         dismissButton = { TextButton(onClick = onCerrar) { Text("Cerrar") } }

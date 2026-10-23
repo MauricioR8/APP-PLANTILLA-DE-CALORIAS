@@ -50,6 +50,7 @@ import com.mauricior8.calorias.ui.state.UiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
@@ -385,7 +386,8 @@ class MainViewModel(
         unidad: String,
         limiteMaximo: Float? = null,
         colorHex: String = "#FF6D00",
-        tipoGrafica: String = "Anillo"
+        tipoGrafica: String = "Anillo",
+        limiteDescanso: Float? = null
     ) {
         val nombreLimpio = nombre.trim()
         if (nombreLimpio.isEmpty()) return
@@ -398,7 +400,8 @@ class MainViewModel(
                     limiteMaximo = limiteMaximo,
                     colorHex = colorHex,
                     orden = repository.siguienteOrden(),
-                    tipoGrafica = tipoGrafica
+                    tipoGrafica = tipoGrafica,
+                    limiteDescanso = limiteDescanso
                 )
             )
         }
@@ -618,8 +621,15 @@ class MainViewModel(
 
     // ---------------- Ajustes ----------------
 
+    private val _ajustesListos = MutableStateFlow(false)
+
+    /** True cuando ya se leyeron los ajustes (evita mostrar contenido antes de saber si hay bloqueo). */
+    val ajustesListos: StateFlow<Boolean> = _ajustesListos.asStateFlow()
+
     val ajustes: StateFlow<Map<String, String>> =
-        repository.ajustes.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        repository.ajustes
+            .onEach { _ajustesListos.value = true }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     fun setAjuste(clave: String, valor: String) {
         viewModelScope.launch { repository.setAjuste(clave, valor) }
