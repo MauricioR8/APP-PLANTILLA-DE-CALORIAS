@@ -33,6 +33,16 @@
             android:name=".reminder.AguaReceiver"
             android:exported="false" />
         <receiver
+            android:name=".widget.ResumenWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_resumen_info" />
+        </receiver>
+        <receiver
             android:name=".reminder.RecordatorioReceiver"
             android:exported="false" />
         <receiver

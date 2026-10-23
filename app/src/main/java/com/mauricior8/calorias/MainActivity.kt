@@ -15,6 +15,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.mauricior8.calorias.widget.ResumenWidget
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.mauricior8.calorias.seguridad.Bloqueo
 import com.mauricior8.calorias.ui.MainViewModel
 import com.mauricior8.calorias.ui.screen.MainScreen
@@ -47,6 +51,9 @@ class MainActivity : FragmentActivity() {
     override fun onStop() {
         super.onStop()
         segundoPlanoDesde = SystemClock.elapsedRealtime()
+        // Deja el widget de la pantalla de inicio al dia con lo que se acaba de registrar.
+        val contexto = applicationContext
+        lifecycleScope.launch(Dispatchers.IO) { ResumenWidget.actualizarTodos(contexto) }
     }
 
     override fun onResume() {

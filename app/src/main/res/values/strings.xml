@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Herramienta Calorias Macros</string>
+    <string name="widget_titulo">HOY</string>
+    <string name="widget_agua">+250 ml de agua</string>
+    <string name="widget_descripcion">Calorías y proteína restantes, con botón rápido para el agua</string>
 </resources>

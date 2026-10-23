@@ -1,20 +1,27 @@
-# Plantilla de calorías
+# Calorías, macros y gym
 
-App Android (Kotlin, Jetpack Compose, Room) para llevar el control diario de calorías,
-macros, agua y peso corporal.
+App Android (Kotlin, Jetpack Compose, Room) para llevar el control diario de calorías, macros,
+agua, suplementos, peso, medidas y tu rutina de gym. Todo funciona sin internet y los datos
+se quedan en el teléfono.
 
-## Qué hace
+## Pestañas
 
-- **Mi día**: métricas con meta diaria (calorías, proteínas, carbohidratos, grasas, fibra, azúcar,
-  sodio, agua o las que crees), historial editable y resumen por comida.
-- **Progreso**: gráfica de 7 o 30 días por métrica con su meta, y peso corporal con tendencia.
-- **Agregar alimento**: manual, desde tu historial o buscando en
-  [Open Food Facts](https://openfoodfacts.org) (solo se envía el texto buscado).
-- **Calcular objetivos**: calorías y macros con Mifflin-St Jeor según tu meta (definición,
-  mantener, hipertrofia); se aplican a tus métricas con un toque.
-- **Respaldo**: *Guardar respaldo* / *Restaurar respaldo* (JSON) desde el menú ⋮.
-- Notas, calculadora con historial y tablas de alimentos tipo hoja de cálculo.
-- Recordatorio opcional de agua (8:00 a 22:00).
+- **Hoy**: tira de la semana con el color de la rutina de cada día, anillo de calorías con
+  macros, entrenamiento de hoy, resumen por comida, agua rápida (+250 ml), suplementos,
+  copiar el día anterior y "detalle del día" (de dónde salió cada número).
+- **Gym**: la sesión del día (bloque diario + la rutina que toca). Marca series, descanso con
+  cuenta atrás y vibración, cronómetro por intervalos para ejercicios por tiempo, peso de trabajo
+  por ejercicio con historial y sugerencia de subida. Las rutinas y ejercicios se editan en la app.
+- **Progreso**: *Nutrición* (resumen, racha y gasto energético real estimado), *Cuerpo* (peso con
+  media móvil y medidas) y *Fuerza* (cumplimiento, series por grupo muscular, progreso de cargas).
+- **Notas** y **Más** (calculadora, tablas de alimentos, calcular objetivos y ajustes).
+
+## Ajustes
+
+Tema (sistema/claro/oscuro), inicio de semana, historial de comidas (siempre, semanal o 30 días:
+archiva el detalle y conserva los totales por día), bloqueo con huella/PIN, recordatorios
+(espirómetro 2 veces al día, actualizar pesos cada mes, agua), respaldo JSON y exportación CSV.
+Hay además un widget de pantalla de inicio con calorías y proteína restantes y botón de agua.
 
 ## Compilar
 
@@ -45,8 +52,9 @@ entorno (`CALORIAS_KEYSTORE`, `CALORIAS_STORE_PASSWORD`, `CALORIAS_KEY_ALIAS`,
 ## Base de datos y migraciones
 
 Room exporta el esquema de cada versión a `app/schemas`. Cada cambio de entidades requiere subir
-la versión y escribir su migración en `Migraciones.kt`; `MigracionesTest` la prueba contra SQLite
-real comparando con el esquema que Room espera. Sin migración la app perdería los datos del usuario.
+la versión y escribir su migración en `Migraciones.kt` (copiando los `CREATE` del JSON exportado);
+`MigracionesTest` la prueba contra SQLite real comparando con el esquema que Room espera y verifica
+la cadena completa desde la versión 6. Sin migración la app perdería los datos del usuario.
 
 ## Releases
 
